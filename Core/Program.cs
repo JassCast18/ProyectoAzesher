@@ -1,10 +1,26 @@
-var builder = WebApplication.CreateBuilder(args);
+using Core.DTOs.Interfaces;
+using Core.Provider;
 
+var builder = WebApplication.CreateBuilder(args);
+Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
 // Add services to the container.
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddScoped<IAuthProviderDTO, AuthProvider>();
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowReactApp", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+
 
 var app = builder.Build();
 
@@ -15,6 +31,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowReactApp");
 
 app.UseAuthorization();
 
