@@ -1,13 +1,13 @@
 -- ==============================================================================
 -- TABLA: PRODUCTO
--- Descripción: Catálogo central de todos los productos disponibles.
+-- Descripciï¿½n: Catï¿½logo central de todos los productos disponibles.
 -- ==============================================================================
 IF OBJECT_ID('dbo.producto', 'U') IS NOT NULL
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM dbo.producto)
         DROP TABLE dbo.producto;
     ELSE
-        PRINT 'La tabla "producto" contiene datos. Omitiendo eliminación.';
+        PRINT 'La tabla "producto" contiene datos. Omitiendo eliminaciï¿½n.';
 END
 GO
 
@@ -20,5 +20,33 @@ BEGIN
         precio DECIMAL(12,2) NOT NULL
     );
     CREATE INDEX idx_producto_nombre ON dbo.producto(nombre);
+END
+GO
+
+
+/*=========================================================
+AGREGAR COLUMNA cod_producto
+=========================================================*/
+
+IF COL_LENGTH('dbo.producto', 'cod_producto') IS NULL
+BEGIN
+    ALTER TABLE dbo.producto
+    ADD cod_producto VARCHAR(20);
+END
+GO
+
+/*=========================================================
+AGREGAR CONSTRAINT UNIQUE
+=========================================================*/
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.key_constraints
+    WHERE name = 'UQ_producto_cod_producto'
+)
+BEGIN
+    ALTER TABLE dbo.producto
+    ADD CONSTRAINT UQ_producto_cod_producto
+    UNIQUE (cod_producto);
 END
 GO

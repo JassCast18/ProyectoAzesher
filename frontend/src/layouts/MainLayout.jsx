@@ -3,11 +3,12 @@ import {
     LayoutDashboard, Users, Box, ShoppingCart, LogOut, 
     Menu, Bell, Building2, ChevronDown, User as UserIcon 
 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logoAzeShers from '../assets/logo.png';
 
 export default function MainLayout({ children }) {
-    const { user, logout, sucursales } = useAuth();
+    const { user, logout, sucursales, selectedSucursalId, setSelectedSucursalId, isAdministrator } = useAuth();
     // Estado para controlar si el menú lateral está abierto o cerrado
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -29,10 +30,13 @@ export default function MainLayout({ children }) {
                 </div>
 
                 <nav className="flex-1 p-4 space-y-1 overflow-y-auto whitespace-nowrap">
-                    <a href="#" className="flex items-center gap-3 bg-brand-teal text-white px-4 py-3 rounded-lg text-sm font-medium">
+                    <NavLink
+                        to="/dashboard"
+                        className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-brand-teal text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                    >
                         <LayoutDashboard className="h-5 w-5 min-w-[20px]" /> 
                         <span className={!isSidebarOpen ? 'hidden' : 'block'}>Dashboard</span>
-                    </a>
+                    </NavLink>
                     <a href="#" className="flex items-center gap-3 text-slate-600 hover:bg-slate-50 px-4 py-3 rounded-lg text-sm font-medium transition-colors">
                         <Users className="h-5 w-5 min-w-[20px]" /> 
                         <span className={!isSidebarOpen ? 'hidden' : 'block'}>Proveedores</span>
@@ -41,10 +45,13 @@ export default function MainLayout({ children }) {
                         <Box className="h-5 w-5 min-w-[20px]" /> 
                         <span className={!isSidebarOpen ? 'hidden' : 'block'}>Inventarios</span>
                     </a>
-                    <a href="#" className="flex items-center gap-3 text-slate-600 hover:bg-slate-50 px-4 py-3 rounded-lg text-sm font-medium transition-colors">
+                    <NavLink
+                        to="/ventas"
+                        className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-brand-teal text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                    >
                         <ShoppingCart className="h-5 w-5 min-w-[20px]" /> 
                         <span className={!isSidebarOpen ? 'hidden' : 'block'}>Ventas</span>
-                    </a>
+                    </NavLink>
                 </nav>
             </aside>
 
@@ -72,11 +79,10 @@ export default function MainLayout({ children }) {
                             </div>
                             <select 
                                 className="appearance-none bg-transparent py-2 pl-2 pr-8 text-sm font-medium text-slate-700 outline-none cursor-pointer w-full"
-                                defaultValue={user?.id_sucursal || "0"}
+                                value={selectedSucursalId}
+                                onChange={(event) => setSelectedSucursalId(event.target.value)}
                             >
-                                {user?.id_sucursal === null || user?.id_sucursal === "0" && (
-                                    <option value="0">Todas las sucursales</option>
-                                )}
+                                {isAdministrator && <option value="">Todas las sucursales</option>}
                                 
                                 {sucursales.map((sucursal) => (
                                 <option key={sucursal.idSucursal} value={sucursal.idSucursal}>
@@ -109,7 +115,7 @@ export default function MainLayout({ children }) {
                             </div>
                             
                             {/* Textos del usuario */}
-                            <div className="flex flex-col text-left hidden sm:flex">
+                            <div className="hidden flex-col text-left sm:flex">
                                 <span className="text-sm font-bold text-slate-800 leading-none">
                                     {user?.unique_name || 'Administrador general'}
                                 </span>

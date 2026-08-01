@@ -1,13 +1,13 @@
 -- ==============================================================================
 -- TABLA: INVENTARIO
--- Descripción: Control de stock de productos segmentado por sucursal.
+-- Descripciï¿½n: Control de stock de productos segmentado por sucursal.
 -- ==============================================================================
 IF OBJECT_ID('dbo.inventario', 'U') IS NOT NULL
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM dbo.inventario)
         DROP TABLE dbo.inventario;
     ELSE
-        PRINT 'La tabla "inventario" contiene datos. Omitiendo eliminación.';
+        PRINT 'La tabla "inventario" contiene datos. Omitiendo eliminaciï¿½n.';
 END
 GO
 
@@ -25,3 +25,7 @@ BEGIN
     CREATE INDEX idx_inventario_producto ON dbo.inventario(id_producto);
 END
 GO
+
+ALTER TABLE inventario
+ADD CONSTRAINT uq_inventario_producto_sucursal
+UNIQUE (idProducto, idSucursal);

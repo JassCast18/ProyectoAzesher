@@ -9,6 +9,8 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<IAuthProviderDTO, AuthProvider>();
+builder.Services.AddScoped<ICatalogoProviderDTO, CatalogoProvider>();
+builder.Services.AddScoped<IVentaProviderDTO, VentaProvider>();
 
 builder.Services.AddCors(options =>
 {

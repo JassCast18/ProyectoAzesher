@@ -12,7 +12,7 @@ BEGIN
     SET NOCOUNT ON;
 
     SELECT 
-        id_sucursal,
+        id_sucursal AS IdSucursal,
         nombre,
         direccion
     FROM 
