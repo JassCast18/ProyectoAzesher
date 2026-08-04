@@ -389,12 +389,15 @@ public partial class AZESHERBDContext : DbContext
 
             entity.HasIndex(e => e.IdFactura, "idx_recibo_factura");
 
+            entity.HasIndex(e => e.IdSucursal, "idx_recibo_sucursal");
+
             entity.Property(e => e.IdRecibo).HasColumnName("id_recibo");
             entity.Property(e => e.FechaPago)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnType("datetime")
                 .HasColumnName("fecha_pago");
             entity.Property(e => e.IdFactura).HasColumnName("id_factura");
+            entity.Property(e => e.IdSucursal).HasColumnName("id_sucursal");
             entity.Property(e => e.MetodoPago)
                 .IsRequired()
                 .HasMaxLength(50)
@@ -417,6 +420,10 @@ public partial class AZESHERBDContext : DbContext
                 .HasForeignKey(d => d.IdFactura)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("fk_recibo_factura");
+
+            entity.HasOne(d => d.IdSucursalNavigation).WithMany(p => p.Recibos)
+                .HasForeignKey(d => d.IdSucursal)
+                .HasConstraintName("fk_recibo_sucursal");
         });
 
         modelBuilder.Entity<SesionCaja>(entity =>
@@ -552,7 +559,10 @@ public partial class AZESHERBDContext : DbContext
 
             entity.HasIndex(e => e.Nombre, "idx_vendedor_nombre");
 
+            entity.HasIndex(e => e.IdSucursal, "idx_vendedor_sucursal");
+
             entity.Property(e => e.IdVendedor).HasColumnName("id_vendedor");
+            entity.Property(e => e.IdSucursal).HasColumnName("id_sucursal");
             entity.Property(e => e.Nombre)
                 .IsRequired()
                 .HasMaxLength(150)
@@ -562,6 +572,10 @@ public partial class AZESHERBDContext : DbContext
                 .HasMaxLength(20)
                 .IsUnicode(false)
                 .HasColumnName("telefono");
+
+            entity.HasOne(d => d.IdSucursalNavigation).WithMany(p => p.Vendedors)
+                .HasForeignKey(d => d.IdSucursal)
+                .HasConstraintName("fk_vendedor_sucursal");
         });
 
         modelBuilder.Entity<Ventum>(entity =>

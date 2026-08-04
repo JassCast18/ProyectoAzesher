@@ -5,6 +5,9 @@ import DashboardPage from '../pages/DashboardPage';
 import VentasPage from '../pages/VentasPage';
 import ReciboPreviewPage from '../pages/ReciboPreviewPage';
 import MainLayout from '../layouts/MainLayout';
+import RecibosPage from '../pages/RecibosPage';
+import InventarioProductosPage from '../pages/InventarioProductosPage';
+import EntradaPedidoPage from '../pages/EntradaPedidoPage';
 
 const ProtectedRoute = ({ children }) => {
     const { user } = useAuth();
@@ -42,6 +45,17 @@ export default function AppRouter() {
                     />
 
                     <Route
+                        path="/ventas/recibos"
+                        element={
+                            <ProtectedRoute>
+                                <MainLayout>
+                                    <RecibosPage />
+                                </MainLayout>
+                            </ProtectedRoute>
+                        }
+                    />
+
+                    <Route
                         path="/ventas/recibo-preview"
                         element={
                             <ProtectedRoute>
@@ -51,6 +65,10 @@ export default function AppRouter() {
                             </ProtectedRoute>
                         }
                     />
+
+                    <Route path="/inventarios" element={<Navigate to="/inventarios/productos" replace />} />
+                    <Route path="/inventarios/productos" element={<ProtectedRoute><MainLayout><InventarioProductosPage /></MainLayout></ProtectedRoute>} />
+                    <Route path="/inventarios/entrada-pedido" element={<ProtectedRoute><MainLayout><EntradaPedidoPage /></MainLayout></ProtectedRoute>} />
                     
                     {/* Cualquier otra ruta lo manda al login */}
                     <Route path="*" element={<Navigate to="/" replace />} />

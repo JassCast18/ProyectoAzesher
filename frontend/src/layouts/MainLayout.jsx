@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import { 
-    LayoutDashboard, Users, Box, ShoppingCart, LogOut, 
-    Menu, Bell, Building2, ChevronDown, User as UserIcon 
+    LayoutDashboard, Users, Box, ShoppingCart, LogOut, ReceiptText, PackageSearch, ClipboardList,
+    Menu, Bell, Building2, ChevronDown, User as UserIcon
 } from 'lucide-react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logoAzeShers from '../assets/logo.png';
 
 export default function MainLayout({ children }) {
-    const { user, logout, sucursales, selectedSucursalId, setSelectedSucursalId, isAdministrator } = useAuth();
+    const { user, logout, sucursales, selectedSucursalId, setSelectedSucursalId, isSucursalLocked } = useAuth();
+    const location = useLocation();
     // Estado para controlar si el menú lateral está abierto o cerrado
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isVentasOpen, setIsVentasOpen] = useState(() => location.pathname.startsWith('/ventas'));
+    const [isInventariosOpen, setIsInventariosOpen] = useState(() => location.pathname.startsWith('/inventarios'));
 
     return (
         <div className="flex h-screen bg-slate-50 overflow-hidden">
@@ -41,17 +44,28 @@ export default function MainLayout({ children }) {
                         <Users className="h-5 w-5 min-w-[20px]" /> 
                         <span className={!isSidebarOpen ? 'hidden' : 'block'}>Proveedores</span>
                     </a>
-                    <a href="#" className="flex items-center gap-3 text-slate-600 hover:bg-slate-50 px-4 py-3 rounded-lg text-sm font-medium transition-colors">
+                    <button type="button" onClick={() => setIsInventariosOpen((current) => !current)} className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${location.pathname.startsWith('/inventarios') ? 'bg-brand-teal text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
                         <Box className="h-5 w-5 min-w-[20px]" /> 
                         <span className={!isSidebarOpen ? 'hidden' : 'block'}>Inventarios</span>
-                    </a>
-                    <NavLink
-                        to="/ventas"
-                        className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-brand-teal text-white' : 'text-slate-600 hover:bg-slate-50'}`}
-                    >
+                        <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${isInventariosOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isInventariosOpen && (
+                        <div className="ml-5 space-y-1 border-l border-slate-200 pl-3">
+                            <NavLink to="/inventarios/productos" className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><PackageSearch className="h-4 w-4" />Listado de productos</NavLink>
+                            <NavLink to="/inventarios/entrada-pedido" className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><ClipboardList className="h-4 w-4" />Entrada de pedido</NavLink>
+                        </div>
+                    )}
+                    <button type="button" onClick={() => setIsVentasOpen((current) => !current)} className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${location.pathname.startsWith('/ventas') ? 'bg-brand-teal text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
                         <ShoppingCart className="h-5 w-5 min-w-[20px]" /> 
                         <span className={!isSidebarOpen ? 'hidden' : 'block'}>Ventas</span>
-                    </NavLink>
+                        <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${isVentasOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isVentasOpen && (
+                        <div className="ml-5 space-y-1 border-l border-slate-200 pl-3">
+                            <NavLink to="/ventas" end className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><ShoppingCart className="h-4 w-4" />Venta de productos</NavLink>
+                            <NavLink to="/ventas/recibos" className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><ReceiptText className="h-4 w-4" />Recibos</NavLink>
+                        </div>
+                    )}
                 </nav>
             </aside>
 
@@ -78,12 +92,12 @@ export default function MainLayout({ children }) {
                                 <Building2 className="h-4 w-4 text-slate-400" />
                             </div>
                             <select 
-                                className="appearance-none bg-transparent py-2 pl-2 pr-8 text-sm font-medium text-slate-700 outline-none cursor-pointer w-full"
+                                className="appearance-none bg-transparent py-2 pl-2 pr-8 text-sm font-medium text-slate-700 outline-none cursor-pointer w-full disabled:cursor-not-allowed disabled:text-slate-400"
                                 value={selectedSucursalId}
                                 onChange={(event) => setSelectedSucursalId(event.target.value)}
+                                disabled={isSucursalLocked}
+                                title={isSucursalLocked ? 'Finaliza la venta o vacía el pedido para cambiar de sucursal.' : 'Seleccionar sucursal'}
                             >
-                                {isAdministrator && <option value="">Todas las sucursales</option>}
-                                
                                 {sucursales.map((sucursal) => (
                                 <option key={sucursal.idSucursal} value={sucursal.idSucursal}>
                                         {sucursal.nombreSuc}

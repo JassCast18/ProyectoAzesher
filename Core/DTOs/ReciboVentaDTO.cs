@@ -8,6 +8,16 @@ namespace Core.DTOs
         public decimal Monto { get; set; }
         public string MetodoPago { get; set; } = string.Empty;
         public string? NumeroComprobante { get; set; }
+        public string EstadoRecibo { get; set; } = string.Empty;
+        public string? MonedaNombre { get; set; }
+        public string? MonedaCodigo { get; set; }
+        public string? TipoPosNombre { get; set; }
+        public DateTime? FechaTransferencia { get; set; }
+        public decimal? SaldoPendiente { get; set; }
+        public decimal? MontoInicial { get; set; }
+        public int? NumeroCuotas { get; set; }
+        public DateTime? PrimeraCuotaFecha { get; set; }
+        public decimal? PrimeraCuotaMonto { get; set; }
 
         public int IdFactura { get; set; }
         public string NumeroFactura { get; set; } = string.Empty;
@@ -28,6 +38,7 @@ namespace Core.DTOs
 
         public int IdVendedor { get; set; }
         public string VendedorNombre { get; set; } = string.Empty;
+        public int? IdSucursal { get; set; }
         public string? SucursalNombre { get; set; }
 
         public List<ReciboDetalleVentaDTO> Detalles { get; set; } = new();

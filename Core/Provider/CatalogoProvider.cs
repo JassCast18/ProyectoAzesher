@@ -39,5 +39,44 @@ namespace Core.Provider
 
             return resultado.ToList();
         }
+
+        public async Task<List<VendedorCatalogoDTO>> ObtenerVendedoresAsync(int idSucursal)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            var parametros = new DynamicParameters();
+            parametros.Add("@IdSucursal", idSucursal);
+            var resultado = await connection.QueryAsync<VendedorCatalogoDTO>(
+                "dbo.sp_obtener_vendedores_catalogo",
+                parametros,
+                commandType: CommandType.StoredProcedure);
+
+            return resultado.ToList();
+        }
+
+        public async Task<List<MonedaCatalogoDTO>> ObtenerMonedasAsync()
+        {
+            using var connection = new SqlConnection(_connectionString);
+            var resultado = await connection.QueryAsync<MonedaCatalogoDTO>(
+                "dbo.sp_obtener_monedas", commandType: CommandType.StoredProcedure);
+            return resultado.ToList();
+        }
+
+        public async Task<List<TipoPosCatalogoDTO>> ObtenerTiposPosAsync()
+        {
+            using var connection = new SqlConnection(_connectionString);
+            var resultado = await connection.QueryAsync<TipoPosCatalogoDTO>(
+                "dbo.sp_obtener_tipos_pos", commandType: CommandType.StoredProcedure);
+            return resultado.ToList();
+        }
+
+        public async Task<List<ClienteCreditoDTO>> BuscarClientesCreditoAsync(string query)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            var parametros = new DynamicParameters();
+            parametros.Add("@Query", query?.Trim() ?? string.Empty);
+            var resultado = await connection.QueryAsync<ClienteCreditoDTO>(
+                "dbo.sp_buscar_clientes_credito", parametros, commandType: CommandType.StoredProcedure);
+            return resultado.ToList();
+        }
     }
 }

@@ -35,7 +35,6 @@ export default function LoginPage() {
             <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-gray-100">
                 
                 <div className="flex flex-col items-center mb-6">
-                    {/* Sustituye la URL por la de tu logo real cuando lo tengas */}
                     <img src={logoAzeShers} alt="Logo Aze-Sher's" className="w-40 h-auto mb-4" />
                     <h1 className="text-xl font-bold text-slate-800">Distribuidora Aze-Sher's</h1>
                     <p className="text-sm text-slate-500">Sistema de control y gestión de ventas e inventarios</p>

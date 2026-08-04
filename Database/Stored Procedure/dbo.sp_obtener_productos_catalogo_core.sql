@@ -17,7 +17,8 @@ BEGIN
         p.descripcion AS Descripcion,
         p.precio AS Precio,
         i.id_sucursal AS IdSucursal,
-        s.nombre AS NombreSucursal
+        s.nombre AS NombreSucursal,
+        i.stock AS Stock
     FROM dbo.producto p
     LEFT JOIN dbo.inventario i ON i.id_producto = p.id_producto
     LEFT JOIN dbo.sucursal s ON s.id_sucursal = i.id_sucursal
@@ -27,6 +28,7 @@ BEGIN
          OR p.nombre LIKE '%' + @Query + '%'
          OR ISNULL(p.descripcion, '') LIKE '%' + @Query + '%')
         AND (@IdSucursal IS NULL OR i.id_sucursal = @IdSucursal)
+        AND ISNULL(i.stock, 0) > 0
     ORDER BY p.nombre;
 END
 GO

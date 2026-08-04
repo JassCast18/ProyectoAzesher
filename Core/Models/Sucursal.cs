@@ -17,9 +17,13 @@ public partial class Sucursal
 
     public virtual ICollection<Inventario> Inventarios { get; set; } = new List<Inventario>();
 
+    public virtual ICollection<Recibo> Recibos { get; set; } = new List<Recibo>();
+
     public virtual ICollection<Traslado> TrasladoIdSucursalDestinoNavigations { get; set; } = new List<Traslado>();
 
     public virtual ICollection<Traslado> TrasladoIdSucursalOrigenNavigations { get; set; } = new List<Traslado>();
 
     public virtual ICollection<Usuario> Usuarios { get; set; } = new List<Usuario>();
+
+    public virtual ICollection<Vendedor> Vendedors { get; set; } = new List<Vendedor>();
 }

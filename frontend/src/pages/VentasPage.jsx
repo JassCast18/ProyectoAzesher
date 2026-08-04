@@ -1,17 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Banknote, CreditCard, Search, Trash2, ReceiptText, Plus, UserRound, Building2, BadgeInfo } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Search, Trash2, Plus, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
-import { buildReceiptPdfPayload, buildReceiptPreview, paymentReferenceLabels, validateAddItem, validateGenerateReceipt } from '../middleware/ventasValidations';
-
-const paymentMethods = [
-    { id: 'efectivo', label: 'Efectivo', icon: Banknote },
-    { id: 'tarjeta', label: 'Tarjeta', icon: CreditCard },
-    { id: 'transferencia', label: 'Transferencia', icon: BadgeInfo },
-    { id: 'cheque', label: 'Cheque', icon: BadgeInfo },
-    { id: 'credito', label: 'Por cobrar', icon: UserRound },
-];
+import { buildReceiptPdfPayload, buildReceiptPreview, validateAddItem, validateGenerateReceipt } from '../middleware/ventasValidations';
+import { getSalesDraft, saveSalesDraft } from '../state/ventasDraftStore';
+import NotificationToast from '../components/NotificationToast';
+import PaymentMethodsPanel from '../components/PaymentMethodsPanel';
+import CreditCustomerModal from '../components/CreditCustomerModal';
 
 const money = new Intl.NumberFormat('es-GT', {
     style: 'currency',
@@ -19,26 +15,113 @@ const money = new Intl.NumberFormat('es-GT', {
 });
 
 export default function VentasPage() {
+    const initialDraft = getSalesDraft();
     const navigate = useNavigate();
-    const { user, selectedSucursalId, sucursales, isAdministrator } = useAuth();
-    const [productQuery, setProductQuery] = useState('');
+    const { selectedSucursalId, sucursales, setIsSucursalLocked } = useAuth();
+    const [productQuery, setProductQuery] = useState(() => initialDraft?.productQuery ?? '');
     const [productResults, setProductResults] = useState([]);
-    const [selectedProduct, setSelectedProduct] = useState(null);
-    const [quantity, setQuantity] = useState(1);
-    const [cartItems, setCartItems] = useState([]);
+    const [selectedProduct, setSelectedProduct] = useState(() => initialDraft?.selectedProduct ?? null);
+    const [quantity, setQuantity] = useState(() => initialDraft?.quantity ?? 1);
+    const [cartItems, setCartItems] = useState(() => initialDraft?.cartItems ?? []);
 
-    const [clientQuery, setClientQuery] = useState('');
+    const [clientQuery, setClientQuery] = useState(() => initialDraft?.clientQuery ?? '');
     const [clientResults, setClientResults] = useState([]);
-    const [selectedClient, setSelectedClient] = useState(null);
-    const [customer, setCustomer] = useState({ nit: '', nombre: '', domicilio: '', telefono: '' });
+    const [selectedClient, setSelectedClient] = useState(() => initialDraft?.selectedClient ?? null);
+    const [customer, setCustomer] = useState(() => initialDraft?.customer ?? { nit: '', nombre: '', domicilio: '', telefono: '' });
 
-    const [paymentMethod, setPaymentMethod] = useState('efectivo');
-    const [paymentReference, setPaymentReference] = useState('');
-    const [message, setMessage] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState(() => initialDraft?.paymentMethod ?? 'efectivo');
+    const [paymentDetails, setPaymentDetails] = useState(() => initialDraft?.paymentDetails ?? {
+        currencyId: null, currencyCode: '', posId: null, reference: '', transferDate: '',
+        transferBase64: null, transferMime: null, transferFileName: '',
+        credit: { customer: null, installments: 1, hasInitialPayment: false, initialAmount: 0, schedule: [] },
+    });
+    const [currencies, setCurrencies] = useState([]);
+    const [posTypes, setPosTypes] = useState([]);
+    const [isCreditModalOpen, setIsCreditModalOpen] = useState(false);
+    const [notification, setNotification] = useState(null);
+    const [sellers, setSellers] = useState([]);
+    const [selectedSellerId, setSelectedSellerId] = useState(() => initialDraft?.selectedSellerId ?? '');
 
     const total = useMemo(() => cartItems.reduce((sum, item) => sum + item.subtotal, 0), [cartItems]);
     const selectedBranch = useMemo(() => sucursales.find((branch) => String(branch.idSucursal) === String(selectedSucursalId)), [sucursales, selectedSucursalId]);
-    const showProductBranch = isAdministrator && !selectedSucursalId;
+    const effectiveSucursalId = selectedSucursalId;
+    const saleBranch = useMemo(
+        () => sucursales.find((branch) => String(branch.idSucursal) === String(effectiveSucursalId)),
+        [sucursales, effectiveSucursalId],
+    );
+    const selectedSeller = useMemo(() => sellers.find((seller) => String(seller.idVendedor) === selectedSellerId), [sellers, selectedSellerId]);
+    const showPaymentError = useCallback((message) => setNotification({ message, type: 'error' }), []);
+
+    useEffect(() => {
+        const loadPaymentCatalogs = async () => {
+            try {
+                const [currencyResponse, posResponse] = await Promise.all([
+                    axiosClient.get('/catalogo/monedas'), axiosClient.get('/catalogo/tipos-pos'),
+                ]);
+                const currencyData = currencyResponse.data?.data ?? [];
+                setCurrencies(currencyData);
+                setPosTypes(posResponse.data?.data ?? []);
+                setPaymentDetails((current) => current.currencyId ? current : {
+                    ...current,
+                    currencyId: currencyData.find((item) => item.codigo === 'GTQ')?.idMoneda ?? currencyData[0]?.idMoneda ?? null,
+                    currencyCode: currencyData.find((item) => item.codigo === 'GTQ')?.codigo ?? currencyData[0]?.codigo ?? '',
+                });
+            } catch {
+                setNotification({ message: 'No fue posible cargar los catálogos de pago.', type: 'error' });
+            }
+        };
+        loadPaymentCatalogs();
+    }, []);
+
+    const creditInstallments = paymentDetails.credit.installments;
+    const creditInitialAmount = paymentDetails.credit.initialAmount;
+    useEffect(() => {
+        const count = Math.max(1, Number(creditInstallments || 1));
+        const pending = Math.max(0, total - Number(creditInitialAmount || 0));
+        const baseAmount = Math.floor((pending / count) * 100) / 100;
+        setPaymentDetails((current) => {
+            const schedule = Array.from({ length: count }, (_, index) => {
+                const existing = current.credit.schedule[index];
+                const date = new Date();
+                date.setMonth(date.getMonth() + index + 1);
+                const amount = index === count - 1 ? Number((pending - baseAmount * (count - 1)).toFixed(2)) : baseAmount;
+                return { number: index + 1, date: existing?.date || date.toISOString().slice(0, 10), amount };
+            });
+            return { ...current, credit: { ...current.credit, schedule } };
+        });
+    }, [creditInstallments, creditInitialAmount, total]);
+
+    useEffect(() => {
+        setIsSucursalLocked(cartItems.length > 0);
+    }, [cartItems.length, setIsSucursalLocked]);
+
+    useEffect(() => {
+
+        if (!effectiveSucursalId) {
+            setSellers([]);
+            return;
+        }
+
+        const loadSellers = async () => {
+            try {
+                const response = await axiosClient.get('/catalogo/vendedores', {
+                    params: { idSucursal: effectiveSucursalId },
+                });
+                const branchSellers = response.data?.data ?? [];
+                setSellers(branchSellers);
+                setSelectedSellerId((currentId) => (
+                    branchSellers.some((seller) => String(seller.idVendedor) === String(currentId)) ? currentId : ''
+                ));
+            } catch (error) {
+                setSellers([]);
+                setNotification({
+                    message: error.response?.data?.message || 'No fue posible cargar los vendedores de esta sucursal.',
+                    type: 'error',
+                });
+            }
+        };
+        loadSellers();
+    }, [effectiveSucursalId]);
 
     useEffect(() => {
         const term = productQuery.trim();
@@ -87,22 +170,24 @@ export default function VentasPage() {
     }, [clientQuery]);
 
     useEffect(() => {
-        if (paymentMethod === 'credito' && selectedClient) {
+        const creditCustomer = paymentDetails.credit.customer;
+        if (paymentMethod === 'credito' && creditCustomer) {
             setCustomer((current) => ({
                 ...current,
-                nit: selectedClient.nit || '',
-                nombre: selectedClient.nombre || '',
-                domicilio: selectedClient.direccion || '',
-                telefono: selectedClient.telefono || '',
+                nit: creditCustomer.nit || '',
+                nombre: creditCustomer.nombre || '',
+                domicilio: creditCustomer.direccion || '',
+                telefono: creditCustomer.telefono || '',
             }));
+            setSelectedClient(creditCustomer);
         }
-    }, [paymentMethod, selectedClient]);
+    }, [paymentMethod, paymentDetails.credit.customer]);
 
     const selectProduct = (product) => {
         setSelectedProduct(product);
         setProductQuery(`${product.idProducto} - ${product.nombre}`);
         setProductResults([]);
-        setMessage('');
+        setNotification(null);
     };
 
     const selectClient = (client) => {
@@ -115,13 +200,13 @@ export default function VentasPage() {
         });
         setClientQuery(`${client.nit || ''} - ${client.nombre}`.trim());
         setClientResults([]);
-        setMessage('');
+        setNotification(null);
     };
 
     const addItem = () => {
         const validationMessage = validateAddItem({ selectedProduct, quantity });
         if (validationMessage) {
-            setMessage(validationMessage);
+            setNotification({ message: validationMessage, type: 'warning' });
             return;
         }
 
@@ -133,6 +218,13 @@ export default function VentasPage() {
         if (existingIndex >= 0) {
             const currentItem = nextItems[existingIndex];
             const updatedQuantity = currentItem.cantidad + qty;
+            if (Number.isFinite(Number(selectedProduct.stock)) && updatedQuantity > Number(selectedProduct.stock)) {
+                setNotification({
+                    message: `Solo hay ${selectedProduct.stock} unidades disponibles en esta sucursal.`,
+                    type: 'warning',
+                });
+                return;
+            }
             nextItems[existingIndex] = {
                 ...currentItem,
                 cantidad: updatedQuantity,
@@ -155,7 +247,7 @@ export default function VentasPage() {
         setProductQuery('');
         setQuantity(1);
         setProductResults([]);
-        setMessage('Producto agregado al pedido.');
+        setNotification({ message: 'Producto agregado al pedido.', type: 'success' });
     };
 
     const removeItem = (idProducto) => {
@@ -168,24 +260,37 @@ export default function VentasPage() {
             customer,
             paymentMethod,
             selectedClient,
-            paymentReference,
+            paymentDetails,
+            selectedSeller,
         });
 
         if (!validation.isValid) {
-            setMessage(validation.message);
+            setNotification({ message: validation.message, type: 'warning' });
             return;
         }
 
-        const sellerName = user?.nombre || user?.unique_name || 'Usuario';
         const receiptPreview = buildReceiptPreview({
             customer: validation.customer,
             paymentMethod,
-            paymentReference,
+            paymentDetails,
             total,
             cartItems,
-            sellerName,
+            selectedSeller,
             selectedClient,
-            selectedBranch,
+            selectedBranch: saleBranch,
+        });
+
+        saveSalesDraft({
+            productQuery,
+            selectedProduct,
+            quantity,
+            cartItems,
+            clientQuery,
+            selectedClient,
+            customer,
+            paymentMethod,
+            paymentDetails,
+            selectedSellerId,
         });
 
         navigate('/ventas/recibo-preview', {
@@ -196,20 +301,21 @@ export default function VentasPage() {
         });
     };
 
-    const paymentReferenceLabel = paymentReferenceLabels[paymentMethod];
-    const requiresReference = Boolean(paymentReferenceLabel);
-
     return (
         <div className="space-y-6">
             <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
                 <section className="space-y-6">
-                    <div className="rounded-3xl border border-white/60 bg-white/90 p-5 shadow-sm backdrop-blur">
+                    <div className=" border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="flex items-center justify-between gap-3">
                             <div>
                                 <h2 className="text-lg font-semibold text-slate-900">Buscar producto</h2>
                             </div>
-                            <div className="rounded-full bg-teal-50 p-3 text-brand-teal">
-                                <Search className="h-5 w-5" />
+                            <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                    <p className="text-xs text-slate-500">Total a pagar</p>
+                                    <p className="text-lg font-bold text-slate-900">{money.format(total)}</p>
+                                </div>
+                                <div className="rounded-full bg-teal-50 p-3 text-brand-teal"><Search className="h-5 w-5" /></div>
                             </div>
                         </div>
 
@@ -221,7 +327,7 @@ export default function VentasPage() {
                                         setProductQuery(event.target.value);
                                         setSelectedProduct(null);
                                     }}
-                                    placeholder="Ej. 12 o arroz"
+                                    Placeholder="Buscar producto por ID o nombre"
                                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-teal focus:bg-white"
                                 />
                                 {productResults.length > 0 && (
@@ -236,11 +342,6 @@ export default function VentasPage() {
                                                 <div>
                                                     <p className="font-medium text-slate-900">{product.idProducto} - {product.nombre}</p>
                                                     <p className="text-xs text-slate-500">{product.descripcion || 'Sin descripción'}</p>
-                                                    {showProductBranch && (
-                                                        <p className="text-[11px] uppercase tracking-[0.18em] text-teal-700">
-                                                            {product.nombreSucursal || 'Sucursal no asignada'}
-                                                        </p>
-                                                    )}
                                                 </div>
                                                 <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-brand-teal">
                                                     {money.format(product.precio)}
@@ -272,7 +373,7 @@ export default function VentasPage() {
                         </div>
 
                         {selectedProduct && (
-                            <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-teal-100 bg-teal-50 p-4 md:flex-row md:items-center md:justify-between">
+                            <div className="mt-4 flex flex-col gap-2 rounded-2xl border border-teal-100 bg-white p-4 md:flex-row md:items-center md:justify-between">
                                 <div>
                                     <p className="text-sm font-semibold text-teal-900">{selectedProduct.idProducto} - {selectedProduct.nombre}</p>
                                     <p className="text-xs text-teal-700">Precio unitario: {money.format(selectedProduct.precio)}</p>
@@ -283,11 +384,10 @@ export default function VentasPage() {
                         )}
                     </div>
 
-                    <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div className="overflow-hidden border border-slate-200 bg-white shadow-sm">
                         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                             <div>
                                 <h2 className="text-lg font-semibold text-slate-900">Pedido</h2>
-                                <p className="text-sm text-slate-500">Solo puedes eliminar productos, no editar líneas.</p>
                             </div>
                             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{cartItems.length} líneas</span>
                         </div>
@@ -336,10 +436,26 @@ export default function VentasPage() {
                             </table>
                         </div>
                     </div>
+
+                    <PaymentMethodsPanel
+                        method={paymentMethod}
+                        onMethodChange={(method) => {
+                            setPaymentMethod(method);
+                            setPaymentDetails((current) => ({ ...current, reference: '' }));
+                            setNotification(null);
+                            if (method === 'credito') setIsCreditModalOpen(true);
+                        }}
+                        currencies={currencies}
+                        posTypes={posTypes}
+                        details={paymentDetails}
+                        onDetailsChange={setPaymentDetails}
+                        onOpenCredit={() => setIsCreditModalOpen(true)}
+                        onError={(message) => setNotification({ message, type: 'warning' })}
+                    />
                 </section>
 
                 <aside className="space-y-6">
-                    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="flex items-center justify-between gap-3">
                             <div>
                                 <h2 className="text-lg font-semibold text-slate-900">Cliente y facturación</h2>
@@ -412,78 +528,53 @@ export default function VentasPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <h2 className="text-lg font-semibold text-slate-900">Método de pago</h2>
-                                <p className="text-sm text-slate-500">Elige cómo se pagará el pedido.</p>
-                            </div>
-                            <ReceiptText className="h-5 w-5 text-brand-teal" />
-                        </div>
-
-                        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
-                            {paymentMethods.map((method) => {
-                                const Icon = method.icon;
-                                const isActive = paymentMethod === method.id;
-
-                                return (
-                                    <button
-                                        key={method.id}
-                                        type="button"
-                                        onClick={() => {
-                                            setPaymentMethod(method.id);
-                                            setPaymentReference('');
-                                            setMessage('');
-                                        }}
-                                        className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${isActive ? 'border-brand-teal bg-teal-50 text-slate-900' : 'border-slate-200 bg-slate-50 text-slate-600 hover:bg-white'}`}
-                                    >
-                                        <span className={`rounded-full p-2 ${isActive ? 'bg-brand-teal text-white' : 'bg-white text-slate-500'}`}>
-                                            <Icon className="h-4 w-4" />
-                                        </span>
-                                        <span className="font-medium">{method.label}</span>
-                                    </button>
-                                );
-                            })}
-                        </div>
-
-                        {requiresReference && (
-                            <div className="mt-4">
-                                <label className="mb-2 block text-sm font-medium text-slate-700">{paymentReferenceLabel}</label>
-                                <input
-                                    value={paymentReference}
-                                    onChange={(event) => setPaymentReference(event.target.value)}
-                                    placeholder={paymentReferenceLabel}
-                                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-teal focus:bg-white"
-                                />
-                            </div>
-                        )}
-
-                        {paymentMethod === 'credito' && (
-                            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                                Para <strong>por cobrar</strong>, selecciona un cliente existente del catálogo para dejar el saldo pendiente registrado.
-                            </div>
-                        )}
-
-                        <button
-                            type="button"
-                            onClick={handleGenerateReceipt}
-                            disabled={cartItems.length === 0}
-                            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                    <div className="border border-slate-200 bg-white p-5 shadow-sm">
+                        <label htmlFor="seller" className="block text-sm font-semibold text-slate-900">
+                            Seleccionar vendedor <span className="text-red-600" aria-hidden="true">*</span>
+                        </label>
+                        <select
+                            id="seller"
+                            required
+                            value={selectedSellerId}
+                            onChange={(event) => {
+                                setSelectedSellerId(event.target.value);
+                                setNotification(null);
+                            }}
+                            className="mt-3 w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-teal-100"
                         >
-                            Generar recibo
-                        </button>
+                            <option value="">{effectiveSucursalId ? 'Selecciona un vendedor' : 'Selecciona una sucursal o agrega un producto'}</option>
+                            {sellers.map((seller) => (
+                                <option key={seller.idVendedor} value={seller.idVendedor}>{seller.nombre}</option>
+                            ))}
+                        </select>
+                        {effectiveSucursalId && sellers.length === 0 && (
+                            <p className="mt-2 text-sm text-slate-500">No hay vendedores asignados a esta sucursal.</p>
+                        )}
                     </div>
 
-                    {message && (
-                        <div className="rounded-2xl border border-teal-100 bg-teal-50 px-4 py-3 text-sm text-teal-900">
-                            {message}
-                        </div>
-                    )}
+                    <button
+                        type="button"
+                        onClick={handleGenerateReceipt}
+                        disabled={cartItems.length === 0}
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                        Generar recibo
+                    </button>
 
                 </aside>
             </div>
 
-            <div className="rounded-3xl bg-sky-300 px-6 py-4 text-slate-900 shadow-sm">
+            <NotificationToast notification={notification} onClose={() => setNotification(null)} />
+            <CreditCustomerModal
+                open={isCreditModalOpen}
+                onClose={() => setIsCreditModalOpen(false)}
+                value={paymentDetails.credit}
+                onChange={(credit) => setPaymentDetails((current) => ({ ...current, credit }))}
+                total={total}
+                onError={showPaymentError}
+            />
+
+            <div className="border border-brand-teal bg-white px-6 py-4 text-slate-900 shadow-sm">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <span className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-700">Total actual</span>
                     <span className="text-3xl font-bold">{money.format(total)}</span>

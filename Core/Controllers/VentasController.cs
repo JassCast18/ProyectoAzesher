@@ -6,6 +6,8 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using Core.DTOs;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Core.Services;
 
 namespace Core.Controllers
 {
@@ -29,6 +31,15 @@ namespace Core.Controllers
             public string? SucursalNombre { get; set; }
             public string MetodoPago { get; set; } = string.Empty;
             public string? ReferenciaPago { get; set; }
+            public string EstadoRecibo { get; set; } = string.Empty;
+            public string? Moneda { get; set; }
+            public string? TipoPos { get; set; }
+            public DateTime? FechaTransferencia { get; set; }
+            public decimal? SaldoPendiente { get; set; }
+            public decimal? MontoInicial { get; set; }
+            public int? NumeroCuotas { get; set; }
+            public DateTime? PrimeraCuotaFecha { get; set; }
+            public decimal? PrimeraCuotaMonto { get; set; }
             public decimal Total { get; set; }
             public List<ReciboPdfDetalleData> Detalles { get; set; } = new();
         }
@@ -102,6 +113,16 @@ namespace Core.Controllers
                     VendedorNombre = recibo.VendedorNombre,
                     SucursalNombre = recibo.SucursalNombre,
                     MetodoPago = recibo.MetodoPago,
+                    ReferenciaPago = recibo.NumeroComprobante,
+                    EstadoRecibo = recibo.EstadoRecibo,
+                    Moneda = recibo.MonedaNombre,
+                    TipoPos = recibo.TipoPosNombre,
+                    FechaTransferencia = recibo.FechaTransferencia,
+                    SaldoPendiente = recibo.SaldoPendiente,
+                    MontoInicial = recibo.MontoInicial,
+                    NumeroCuotas = recibo.NumeroCuotas,
+                    PrimeraCuotaFecha = recibo.PrimeraCuotaFecha,
+                    PrimeraCuotaMonto = recibo.PrimeraCuotaMonto,
                     Total = recibo.Monto,
                     Detalles = recibo.Detalles.Select(x => new ReciboPdfDetalleData
                     {
@@ -128,6 +149,68 @@ namespace Core.Controllers
             }
         }
 
+        [Authorize]
+        [HttpGet("recibos")]
+        public async Task<IActionResult> BuscarRecibos(
+            [FromQuery] int? idSucursal,
+            [FromQuery] string? query = null,
+            [FromQuery] DateTime? fechaDesde = null,
+            [FromQuery] DateTime? fechaHasta = null)
+        {
+            var sucursal = ResolverSucursal(idSucursal);
+            if (!sucursal.HasValue)
+                return BadRequest(new ApiResponse<object> { Success = false, Message = "Debes seleccionar una sucursal." });
+
+            var recibos = await _ventaProvider.BuscarRecibosAsync(sucursal.Value, query ?? string.Empty, fechaDesde, fechaHasta);
+            return Ok(new ApiResponse<IEnumerable<ReciboConsultaDTO>>
+            {
+                Success = true,
+                Message = "Recibos obtenidos correctamente.",
+                Data = recibos
+            });
+        }
+
+        [Authorize]
+        [HttpPost("recibos/{idRecibo:int}/anular")]
+        public async Task<IActionResult> AnularRecibo(int idRecibo, [FromBody] AnularReciboRequestDTO request)
+        {
+            try
+            {
+                var idUsuarioClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!int.TryParse(idUsuarioClaim, out var idUsuario)) return Unauthorized();
+                var sucursal = ResolverSucursal(request.IdSucursal);
+                if (!sucursal.HasValue)
+                    return BadRequest(new ApiResponse<object> { Success = false, Message = "Debes seleccionar una sucursal." });
+
+                await _ventaProvider.AnularReciboAsync(idRecibo, sucursal.Value, idUsuario, request.Motivo);
+                return Ok(new ApiResponse<object> { Success = true, Message = "Recibo anulado correctamente." });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message });
+            }
+        }
+
+        [Authorize]
+        [HttpGet("recibos/{idRecibo:int}/docx")]
+        public async Task<IActionResult> ObtenerReciboDocx(int idRecibo)
+        {
+            var recibo = await _ventaProvider.ObtenerReciboVentaAsync(idRecibo);
+            if (recibo is null) return NotFound();
+            var bytes = VentaDocumentExportService.GenerateDocx(recibo);
+            return File(bytes, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", $"{recibo.NumeroRecibo}.docx");
+        }
+
+        [Authorize]
+        [HttpGet("recibos/{idRecibo:int}/excel")]
+        public async Task<IActionResult> ObtenerDetalleExcel(int idRecibo)
+        {
+            var recibo = await _ventaProvider.ObtenerReciboVentaAsync(idRecibo);
+            if (recibo is null) return NotFound();
+            var bytes = VentaDocumentExportService.GenerateXlsx(recibo);
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", $"detalle-{recibo.NumeroRecibo}.xlsx");
+        }
+
         [HttpPost("recibos/pdf-temporal")]
         public IActionResult GenerarReciboPdfTemporal([FromBody] ReciboTemporalRequestDTO request)
         {
@@ -151,6 +234,15 @@ namespace Core.Controllers
                     });
                 }
 
+                if (!request.IdVendedor.HasValue || request.IdVendedor.Value <= 0)
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Debes seleccionar un vendedor."
+                    });
+                }
+
                 var pdfData = new ReciboPdfData
                 {
                     NumeroRecibo = request.NumeroRecibo,
@@ -165,6 +257,15 @@ namespace Core.Controllers
                     SucursalNombre = request.SucursalNombre,
                     MetodoPago = request.MetodoPago,
                     ReferenciaPago = request.ReferenciaPago,
+                    EstadoRecibo = "Pendiente",
+                    Moneda = request.MonedaNombre,
+                    TipoPos = request.TipoPosNombre,
+                    FechaTransferencia = request.FechaTransferencia,
+                    SaldoPendiente = request.MetodoPago == "credito" ? request.Total - request.MontoInicial : null,
+                    MontoInicial = request.MetodoPago == "credito" ? request.MontoInicial : null,
+                    NumeroCuotas = request.NumeroCuotas,
+                    PrimeraCuotaFecha = request.Cuotas.OrderBy(x => x.NumeroCuota).FirstOrDefault()?.FechaVencimiento,
+                    PrimeraCuotaMonto = request.Cuotas.OrderBy(x => x.NumeroCuota).FirstOrDefault()?.Monto,
                     Total = request.Total,
                     Detalles = request.Detalles.Select(x => new ReciboPdfDetalleData
                     {
@@ -191,6 +292,7 @@ namespace Core.Controllers
             }
         }
 
+        [Authorize]
         [HttpPost("recibos")]
         public async Task<IActionResult> GuardarRecibo([FromBody] ReciboTemporalRequestDTO request)
         {
@@ -224,15 +326,23 @@ namespace Core.Controllers
                     });
                 }
 
-                var nombreVendedor = User.Identity?.Name ?? request.VendedorNombre;
                 var idSucursalClaim = User.FindFirst("id_sucursal")?.Value;
                 var idSucursal = request.IdSucursal;
-                if (int.TryParse(idSucursalClaim, out var idSucursalAutenticada))
+                if (int.TryParse(idSucursalClaim, out var idSucursalAutenticada) && idSucursalAutenticada > 0)
                 {
                     idSucursal = idSucursalAutenticada;
                 }
 
-                var idRecibo = await _ventaProvider.GuardarReciboAsync(request, idUsuario, nombreVendedor, idSucursal);
+                if (!idSucursal.HasValue || idSucursal.Value <= 0)
+                {
+                    return BadRequest(new ApiResponse<object>
+                    {
+                        Success = false,
+                        Message = "Debes seleccionar una sucursal para la venta."
+                    });
+                }
+
+                var idRecibo = await _ventaProvider.GuardarReciboAsync(request, idUsuario, idSucursal.Value);
                 var recibo = await _ventaProvider.ObtenerReciboVentaAsync(idRecibo);
 
                 return Ok(new ApiResponse<object>
@@ -240,6 +350,14 @@ namespace Core.Controllers
                     Success = true,
                     Message = "Recibo guardado correctamente.",
                     Data = recibo
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new ApiResponse<object>
+                {
+                    Success = false,
+                    Message = ex.Message
                 });
             }
             catch (Exception ex)
@@ -257,6 +375,9 @@ namespace Core.Controllers
         {
             QuestPDF.Settings.License = LicenseType.Community;
             var logoBytes = LoadLogoBytes();
+            var isCredit = data.MetodoPago.Equals("credito", StringComparison.OrdinalIgnoreCase);
+            var headerColor = isCredit ? "#475569" : "#0f766e";
+            var accentColor = isCredit ? "#334155" : "#0f766e";
 
             return Document.Create(container =>
             {
@@ -269,7 +390,7 @@ namespace Core.Controllers
 
                     page.Header().PaddingBottom(12).Column(col =>
                     {
-                        col.Item().Background("#0f766e").Padding(18).Row(row =>
+                        col.Item().Background(headerColor).Padding(18).Row(row =>
                         {
                             row.ConstantItem(88).Height(60).AlignMiddle().AlignCenter().Element(container =>
                             {
@@ -285,20 +406,22 @@ namespace Core.Controllers
 
                             row.RelativeItem().Column(headerColumn =>
                             {
-                                headerColumn.Item().Text("RECIBO DE PAGO").Bold().FontSize(22).FontColor(Colors.White);
+                                headerColumn.Item().Text(isCredit ? "NOTA DE CRÉDITO" : "RECIBO DE PAGO").Bold().FontSize(22).FontColor(Colors.White);
                                 headerColumn.Item().Text("Revisa si el recibo esta correcto antes de autorizarlo.").FontSize(10).FontColor(Colors.White);
                             });
 
                             row.ConstantItem(170).AlignMiddle().AlignRight().Column(numberColumn =>
                             {
-                                numberColumn.Item().Text("Recibo No.").FontSize(10).FontColor("#dbeafe");
-                                numberColumn.Item().Text(string.IsNullOrWhiteSpace(data.NumeroRecibo) ? "PENDIENTE DE GUARDAR" : data.NumeroRecibo).Bold().FontSize(18).FontColor("#60a5fa");
+                                numberColumn.Item().Text(isCredit ? "Nota No." : "Recibo No.").FontSize(10).FontColor("#e2e8f0");
+                                numberColumn.Item().Text(string.IsNullOrWhiteSpace(data.NumeroRecibo) ? "PENDIENTE DE GUARDAR" : data.NumeroRecibo).Bold().FontSize(18).FontColor(isCredit ? "#f8fafc" : "#60a5fa");
                                 numberColumn.Item().Text($"Fecha pago: {data.FechaPago:dd/MM/yyyy HH:mm}").FontSize(9).FontColor(Colors.White);
                             });
                         });
+                        if (data.EstadoRecibo == "Anulado")
+                            col.Item().Background(Colors.Red.Darken2).Padding(8).AlignCenter().Text("DOCUMENTO ANULADO").Bold().FontColor(Colors.White);
                     });
 
-                    page.Content().Column(col =>
+                    page.Content().Border(1).BorderColor(Colors.Grey.Darken1).Padding(14).Column(col =>
                     {
                         col.Spacing(12);
 
@@ -306,7 +429,7 @@ namespace Core.Controllers
                         {
                             row.RelativeItem().Background(Colors.Grey.Lighten4).Padding(14).Column(info =>
                             {
-                                info.Item().Text("Cliente").Bold().FontColor("#0f766e");
+                                info.Item().Text("Cliente").Bold().FontColor(accentColor);
                                 info.Item().Text($"{data.ClienteNombre}");
                                 info.Item().Text($"NIT: {data.ClienteNit}");
                                 if (!string.IsNullOrWhiteSpace(data.ClienteDomicilio))
@@ -323,7 +446,7 @@ namespace Core.Controllers
 
                             row.RelativeItem().Background("#f8fafc").Padding(14).Column(info =>
                             {
-                                info.Item().Text("Datos de venta").Bold().FontColor("#0f766e");
+                                info.Item().Text("Datos de venta").Bold().FontColor(accentColor);
                                 info.Item().Text($"Factura: {data.NumeroFactura}");
                                 info.Item().Text($"Sucursal: {data.SucursalNombre ?? "Sin sucursal"}");
                                 info.Item().Text($"Vendedor: {data.VendedorNombre}");
@@ -331,6 +454,17 @@ namespace Core.Controllers
                                 if (!string.IsNullOrWhiteSpace(data.ReferenciaPago))
                                 {
                                     info.Item().Text($"Referencia: {data.ReferenciaPago}");
+                                }
+                                if (!string.IsNullOrWhiteSpace(data.TipoPos)) info.Item().Text($"POS: {data.TipoPos}");
+                                if (data.FechaTransferencia.HasValue) info.Item().Text($"Fecha transferencia: {data.FechaTransferencia:dd/MM/yyyy}");
+                                if (!string.IsNullOrWhiteSpace(data.Moneda)) info.Item().Text($"Moneda: {data.Moneda}");
+                                if (data.SaldoPendiente.HasValue)
+                                {
+                                    info.Item().Text($"Monto pendiente: Q {data.SaldoPendiente:0.00}");
+                                    info.Item().Text($"Pago inicial: Q {data.MontoInicial ?? 0:0.00}");
+                                    info.Item().Text($"Cuotas: {data.NumeroCuotas}");
+                                    if (data.PrimeraCuotaFecha.HasValue)
+                                        info.Item().Text($"Primera cuota: Q {data.PrimeraCuotaMonto:0.00} - {data.PrimeraCuotaFecha:dd/MM/yyyy}");
                                 }
                             });
                         });
@@ -362,7 +496,18 @@ namespace Core.Controllers
                             }
                         });
 
-                        col.Item().AlignRight().Background("#f0fdfa").Padding(14).Text($"Monto pagado: Q {data.Total:0.00}").Bold().FontSize(14).FontColor("#0f766e");
+                        if (isCredit)
+                        {
+                            col.Item().AlignRight().Background(Colors.Grey.Lighten4).Border(1).BorderColor(Colors.Grey.Lighten2).Padding(14).Column(total =>
+                            {
+                                total.Item().AlignRight().Text($"Monto recibido: Q {data.MontoInicial ?? 0:0.00}").Bold().FontSize(14).FontColor(accentColor);
+                                total.Item().AlignRight().Text($"Restante: Q {data.SaldoPendiente ?? data.Total:0.00}").Bold().FontSize(13).FontColor(Colors.Grey.Darken2);
+                            });
+                        }
+                        else
+                        {
+                            col.Item().AlignRight().Background("#f0fdfa").Border(1).BorderColor("#99f6e4").Padding(14).Text($"Monto pagado: Q {data.Total:0.00}").Bold().FontSize(14).FontColor(accentColor);
+                        }
                     });
 
                     page.Footer().PaddingTop(8).AlignCenter().Text("Documento generado por Sistema de Ventas").Italic().FontSize(9).FontColor(Colors.Grey.Darken1);
@@ -388,6 +533,14 @@ namespace Core.Controllers
             }
 
             return null;
+        }
+
+        private int? ResolverSucursal(int? sucursalSolicitada)
+        {
+            var claim = User.FindFirst("id_sucursal")?.Value;
+            return int.TryParse(claim, out var sucursalUsuario) && sucursalUsuario > 0
+                ? sucursalUsuario
+                : sucursalSolicitada is > 0 ? sucursalSolicitada : null;
         }
     }
 }

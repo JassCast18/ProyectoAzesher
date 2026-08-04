@@ -29,23 +29,24 @@ export const AuthProvider = ({ children }) => {
 
     const [selectedSucursalId, setSelectedSucursalId] = useState(() => {
         const storedSucursal = localStorage.getItem('selectedSucursalId');
-        if (storedSucursal !== null) {
-            return storedSucursal;
-        }
-
-        return localStorage.getItem('token') ? '' : '';
+        const storedExists = sucursales.some((branch) => String(branch.idSucursal) === String(storedSucursal));
+        return storedExists ? String(storedSucursal) : String(sucursales[0]?.idSucursal ?? '');
     });
+    const [isSucursalLocked, setIsSucursalLocked] = useState(false);
 
     const login = async (username, password) => {
         try {
             const response = await axiosClient.post('/auth/login', { username, password });
             
             if (response.data.success) {
-                const { usuario, token, sucursales: sucursalesDB} = response.data.data;
+                const { token, sucursales: sucursalesDB } = response.data.data;
                 localStorage.setItem('token', token);
                 localStorage.setItem('sucursales', JSON.stringify(sucursalesDB));
                 const decodedUser = jwtDecode(token);
-                const defaultSucursal = decodedUser?.id_sucursal ? String(decodedUser.id_sucursal) : '';
+                const tokenSucursal = Number(decodedUser?.id_sucursal) > 0 ? String(decodedUser.id_sucursal) : '';
+                const defaultSucursal = sucursalesDB.some((branch) => String(branch.idSucursal) === tokenSucursal)
+                    ? tokenSucursal
+                    : String(sucursalesDB[0]?.idSucursal ?? '');
                 localStorage.setItem('selectedSucursalId', defaultSucursal);
                 setUser(decodedUser);
                 setSucursales(sucursalesDB);
@@ -68,10 +69,21 @@ export const AuthProvider = ({ children }) => {
         setUser(null);
         setSucursales([]);
         setSelectedSucursalId('');
+        setIsSucursalLocked(false);
+    };
+
+    const selectSucursal = (idSucursal) => {
+        if (isSucursalLocked) return;
+
+        const normalizedId = sucursales.some((branch) => String(branch.idSucursal) === String(idSucursal))
+            ? String(idSucursal)
+            : String(sucursales[0]?.idSucursal ?? '');
+        localStorage.setItem('selectedSucursalId', normalizedId);
+        setSelectedSucursalId(normalizedId);
     };
 
     return (
-        <AuthContext.Provider value={{ user, sucursales, selectedSucursalId, setSelectedSucursalId, login, logout, isAdministrator: isAdministratorRole(user) }}>
+        <AuthContext.Provider value={{ user, sucursales, selectedSucursalId, setSelectedSucursalId: selectSucursal, isSucursalLocked, setIsSucursalLocked, login, logout, isAdministrator: isAdministratorRole(user) }}>
             {children}
         </AuthContext.Provider>
     );

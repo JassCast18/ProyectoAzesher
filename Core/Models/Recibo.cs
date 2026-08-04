@@ -21,5 +21,9 @@ public partial class Recibo
 
     public int IdFactura { get; set; }
 
+    public int? IdSucursal { get; set; }
+
     public virtual Factura IdFacturaNavigation { get; set; }
+
+    public virtual Sucursal IdSucursalNavigation { get; set; }
 }

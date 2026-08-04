@@ -18,8 +18,18 @@ BEGIN
         id_venta INT NOT NULL,
         saldo_pendiente DECIMAL(12,2) NOT NULL,
         estado VARCHAR(50) NOT NULL,
+        numero_cuotas INT NULL,
+        monto_inicial DECIMAL(12,2) NOT NULL CONSTRAINT df_cuenta_monto_inicial DEFAULT 0,
         CONSTRAINT fk_cuenta_cobrar_venta FOREIGN KEY (id_venta) REFERENCES dbo.venta(id_venta)
     );
     CREATE INDEX idx_cuenta_cobrar_venta ON dbo.cuenta_cobrar(id_venta);
 END
+GO
+
+IF COL_LENGTH('dbo.cuenta_cobrar', 'numero_cuotas') IS NULL
+    ALTER TABLE dbo.cuenta_cobrar ADD numero_cuotas INT NULL;
+IF COL_LENGTH('dbo.cuenta_cobrar', 'monto_inicial') IS NULL
+    ALTER TABLE dbo.cuenta_cobrar ADD monto_inicial DECIMAL(12,2) NOT NULL CONSTRAINT df_cuenta_monto_inicial DEFAULT 0;
+IF COL_LENGTH('dbo.cuenta_cobrar', 'fecha_limite') IS NOT NULL
+    ALTER TABLE dbo.cuenta_cobrar DROP COLUMN fecha_limite;
 GO

@@ -13,5 +13,9 @@ public partial class Vendedor
 
     public string Telefono { get; set; }
 
+    public int? IdSucursal { get; set; }
+
+    public virtual Sucursal IdSucursalNavigation { get; set; }
+
     public virtual ICollection<Ventum> Venta { get; set; } = new List<Ventum>();
 }

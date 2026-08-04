@@ -8,5 +8,6 @@ namespace Core.DTOs
         public decimal Precio { get; set; }
         public int? IdSucursal { get; set; }
         public string? NombreSucursal { get; set; }
+        public int Stock { get; set; }
     }
 }

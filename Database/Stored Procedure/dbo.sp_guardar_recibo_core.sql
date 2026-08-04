@@ -8,7 +8,8 @@ CREATE PROCEDURE dbo.sp_guardar_recibo_core
     @IdFactura INT,
     @Monto DECIMAL(12,2),
     @MetodoPago VARCHAR(50),
-    @NumeroComprobante VARCHAR(100) = NULL
+    @NumeroComprobante VARCHAR(100) = NULL,
+    @IdSucursal INT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -21,7 +22,8 @@ BEGIN
         monto,
         metodo_pago,
         numero_comprobante,
-        id_factura
+        id_factura,
+        id_sucursal
     )
     VALUES (
         'PENDIENTE',
@@ -29,7 +31,8 @@ BEGIN
         @Monto,
         @MetodoPago,
         @NumeroComprobante,
-        @IdFactura
+        @IdFactura,
+        @IdSucursal
     );
 
     SET @IdRecibo = CAST(SCOPE_IDENTITY() AS INT);
