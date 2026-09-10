@@ -11,14 +11,15 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        DECLARE @IdVenta INT, @IdFactura INT, @Estado VARCHAR(30);
-        SELECT @IdVenta = f.id_venta, @IdFactura = f.id_factura, @Estado = r.estado
+        DECLARE @IdVenta INT, @IdFactura INT, @Estado VARCHAR(30), @EstadoFactura VARCHAR(30);
+        SELECT @IdVenta = f.id_venta, @IdFactura = f.id_factura, @Estado = r.estado, @EstadoFactura = f.estado
         FROM dbo.recibo r WITH (UPDLOCK, HOLDLOCK)
         INNER JOIN dbo.factura f ON f.id_factura = r.id_factura
         WHERE r.id_recibo = @IdRecibo AND r.id_sucursal = @IdSucursal;
 
         IF @IdVenta IS NULL THROW 50100, 'El recibo no existe en la sucursal seleccionada.', 1;
         IF @Estado = 'Anulado' THROW 50101, 'El recibo ya se encuentra anulado.', 1;
+        IF @EstadoFactura = 'Autorizada' THROW 50104, 'No se puede anular un recibo que ya posee una factura autorizada.', 1;
         IF NULLIF(LTRIM(RTRIM(@Motivo)), '') IS NULL THROW 50102, 'Debes indicar el motivo de la anulación.', 1;
 
         IF EXISTS (

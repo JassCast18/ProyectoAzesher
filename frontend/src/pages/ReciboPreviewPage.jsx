@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BadgeCheck, FileText, Printer, ShieldCheck, Table2 } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, FileText, Printer, ShieldCheck, Table2, Receipt } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 import { buildReceiptPdfPayload } from '../middleware/ventasValidations';
@@ -163,8 +163,7 @@ export default function ReciboPreviewPage() {
                         <div className={`flex flex-col gap-4 border-b px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between ${isCredit ? 'border-slate-600 bg-slate-700' : 'border-teal-800 bg-teal-900'}`}>
                             <div className="flex items-center gap-4">
                                 <div>
-                                    <p className="text-xs uppercase tracking-[0.25em] text-slate-200">{isCredit ? 'Nota de crédito' : 'Recibo generado'}</p>
-                                    <h1 className="mt-1 text-2xl font-semibold text-white">Revisa si el documento está correcto</h1>
+                                    <h1 className="text-2xl font-semibold text-white">{isCredit ? 'Nota de crédito' : 'Recibo'}</h1>
                                 </div>
                             </div>
 
@@ -197,6 +196,7 @@ export default function ReciboPreviewPage() {
                                 </button>
                                 <button type="button" onClick={() => downloadExport('docx')} disabled={!savedReceipt?.idRecibo} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"><FileText className="h-4 w-4" />Word</button>
                                 <button type="button" onClick={() => downloadExport('excel')} disabled={!savedReceipt?.idRecibo} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"><Table2 className="h-4 w-4" />Excel</button>
+                                {!isCredit && savedReceipt?.idRecibo && !['Autorizada','Emitida'].includes(savedReceipt.estadoFactura) && <button type="button" onClick={() => navigate(`/ventas/facturas/crear?recibo=${savedReceipt.idRecibo}`)} className="inline-flex items-center gap-2 rounded-full bg-sky-200 px-4 py-2 text-sm font-semibold text-sky-950"><Receipt className="h-4 w-4" />Convertir en factura</button>}
                             </div>
                         </div>
 

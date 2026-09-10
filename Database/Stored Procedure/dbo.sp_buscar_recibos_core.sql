@@ -2,7 +2,9 @@ CREATE OR ALTER PROCEDURE dbo.sp_buscar_recibos_core
     @IdSucursal INT,
     @Query VARCHAR(200) = '',
     @FechaDesde DATE = NULL,
-    @FechaHasta DATE = NULL
+    @FechaHasta DATE = NULL,
+    @TipoDocumento VARCHAR(20) = 'recibo',
+    @MetodoPago VARCHAR(30) = ''
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -18,6 +20,8 @@ BEGIN
         r.fecha_anulacion AS FechaAnulacion,
         r.motivo_anulacion AS MotivoAnulacion,
         f.numero_factura AS NumeroFactura,
+        f.id_factura AS IdFactura,
+        CAST(CASE WHEN f.estado = 'Autorizada' THEN 1 ELSE 0 END AS BIT) AS EsFacturada,
         c.id_cliente AS IdCliente,
         c.nombre AS ClienteNombre,
         c.nit AS ClienteNit,
@@ -31,6 +35,9 @@ BEGIN
     INNER JOIN dbo.sucursal s ON s.id_sucursal = r.id_sucursal
     LEFT JOIN dbo.cuenta_cobrar cx ON cx.id_venta = v.id_venta
     WHERE r.id_sucursal = @IdSucursal
+      AND ((LOWER(ISNULL(@TipoDocumento, 'recibo')) = 'nota' AND r.metodo_pago = 'credito')
+           OR (LOWER(ISNULL(@TipoDocumento, 'recibo')) <> 'nota' AND r.metodo_pago <> 'credito'))
+      AND (ISNULL(@MetodoPago, '') = '' OR LOWER(r.metodo_pago) = LOWER(@MetodoPago))
       AND (@Query = ''
            OR r.numero_recibo LIKE '%' + @Query + '%'
            OR c.nombre LIKE '%' + @Query + '%'

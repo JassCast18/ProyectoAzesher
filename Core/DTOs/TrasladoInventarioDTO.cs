@@ -1,0 +1,5 @@
+namespace Core.DTOs;
+public class RegistrarTrasladoDTO { public int IdSucursalOrigen { get; set; } public int IdSucursalDestino { get; set; } public string? Observaciones { get; set; } public List<DetalleTrasladoRequestDTO> Detalles { get; set; } = []; }
+public class DetalleTrasladoRequestDTO { public int IdProducto { get; set; } public int Cantidad { get; set; } }
+public class TrasladoCreadoDTO { public int IdTraslado { get; set; } public string NumeroTraslado { get; set; } = ""; }
+public class TrasladoConsultaDTO { public int IdTraslado { get; set; } public string NumeroTraslado { get; set; } = ""; public DateTime Fecha { get; set; } public string Estado { get; set; } = ""; public int IdSucursalOrigen { get; set; } public string SucursalOrigen { get; set; } = ""; public int IdSucursalDestino { get; set; } public string SucursalDestino { get; set; } = ""; public string? Usuario { get; set; } public string? Observaciones { get; set; } public int IdProducto { get; set; } public string? Codigo { get; set; } public string Producto { get; set; } = ""; public int Cantidad { get; set; } }

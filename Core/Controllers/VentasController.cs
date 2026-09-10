@@ -155,13 +155,15 @@ namespace Core.Controllers
             [FromQuery] int? idSucursal,
             [FromQuery] string? query = null,
             [FromQuery] DateTime? fechaDesde = null,
-            [FromQuery] DateTime? fechaHasta = null)
+            [FromQuery] DateTime? fechaHasta = null,
+            [FromQuery] string tipoDocumento = "recibo",
+            [FromQuery] string metodoPago = "")
         {
             var sucursal = ResolverSucursal(idSucursal);
             if (!sucursal.HasValue)
                 return BadRequest(new ApiResponse<object> { Success = false, Message = "Debes seleccionar una sucursal." });
 
-            var recibos = await _ventaProvider.BuscarRecibosAsync(sucursal.Value, query ?? string.Empty, fechaDesde, fechaHasta);
+            var recibos = await _ventaProvider.BuscarRecibosAsync(sucursal.Value, query ?? string.Empty, fechaDesde, fechaHasta, tipoDocumento, metodoPago);
             return Ok(new ApiResponse<IEnumerable<ReciboConsultaDTO>>
             {
                 Success = true,

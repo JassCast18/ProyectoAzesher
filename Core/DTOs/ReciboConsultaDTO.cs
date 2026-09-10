@@ -12,6 +12,8 @@ namespace Core.DTOs
         public DateTime? FechaAnulacion { get; set; }
         public string? MotivoAnulacion { get; set; }
         public string NumeroFactura { get; set; } = string.Empty;
+        public int IdFactura { get; set; }
+        public bool EsFacturada { get; set; }
         public int IdCliente { get; set; }
         public string ClienteNombre { get; set; } = string.Empty;
         public string? ClienteNit { get; set; }

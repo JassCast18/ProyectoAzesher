@@ -1,22 +1,29 @@
 import { useState } from 'react';
-import { 
+import {
     LayoutDashboard, Users, Box, ShoppingCart, LogOut, ReceiptText, PackageSearch, ClipboardList,
-    Menu, Bell, Building2, ChevronDown, User as UserIcon
+    Menu, Bell, Building2, ChevronDown, User as UserIcon, FilePlus2, Files, Truck,
+    WalletCards, UserRoundPlus, History, BarChart3, Banknote, Settings2, HandCoins, ListChecks, ShieldCheck
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import logoAzeShers from '../assets/logo.png';
 
 export default function MainLayout({ children }) {
-    const { user, logout, sucursales, selectedSucursalId, setSelectedSucursalId, isSucursalLocked } = useAuth();
+    const { user, logout, sucursales, selectedSucursalId, setSelectedSucursalId, isSucursalLocked, isAdministrator } = useAuth();
     const location = useLocation();
     // Estado para controlar si el menú lateral está abierto o cerrado
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isVentasOpen, setIsVentasOpen] = useState(() => location.pathname.startsWith('/ventas'));
     const [isInventariosOpen, setIsInventariosOpen] = useState(() => location.pathname.startsWith('/inventarios'));
+    const [isCajaOpen, setIsCajaOpen] = useState(() => location.pathname.startsWith('/caja'));
+    const [isClientesOpen, setIsClientesOpen] = useState(() => location.pathname.startsWith('/clientes'));
+    const [isReportesOpen, setIsReportesOpen] = useState(() => location.pathname.startsWith('/reportes'));
+    const [isCobrosOpen, setIsCobrosOpen] = useState(() => location.pathname.startsWith('/cobros'));
+    const selectedBranch = sucursales.find((branch) => String(branch.idSucursal) === String(selectedSucursalId));
+    const branchColor = selectedBranch?.colorIdentificacion || '#008BA8';
 
     return (
-        <div className="flex h-screen bg-slate-50 overflow-hidden">
+        <div className="flex h-screen bg-slate-50 overflow-hidden" style={{ '--branch-color': branchColor }}>
             
             {/* MENÚ LATERAL (SIDEBAR) COLAPSABLE */}
             <aside 
@@ -40,10 +47,6 @@ export default function MainLayout({ children }) {
                         <LayoutDashboard className="h-5 w-5 min-w-[20px]" /> 
                         <span className={!isSidebarOpen ? 'hidden' : 'block'}>Dashboard</span>
                     </NavLink>
-                    <a href="#" className="flex items-center gap-3 text-slate-600 hover:bg-slate-50 px-4 py-3 rounded-lg text-sm font-medium transition-colors">
-                        <Users className="h-5 w-5 min-w-[20px]" /> 
-                        <span className={!isSidebarOpen ? 'hidden' : 'block'}>Proveedores</span>
-                    </a>
                     <button type="button" onClick={() => setIsInventariosOpen((current) => !current)} className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${location.pathname.startsWith('/inventarios') ? 'bg-brand-teal text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
                         <Box className="h-5 w-5 min-w-[20px]" /> 
                         <span className={!isSidebarOpen ? 'hidden' : 'block'}>Inventarios</span>
@@ -53,6 +56,8 @@ export default function MainLayout({ children }) {
                         <div className="ml-5 space-y-1 border-l border-slate-200 pl-3">
                             <NavLink to="/inventarios/productos" className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><PackageSearch className="h-4 w-4" />Listado de productos</NavLink>
                             <NavLink to="/inventarios/entrada-pedido" className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><ClipboardList className="h-4 w-4" />Entrada de pedido</NavLink>
+                            <NavLink to="/inventarios/proveedores" className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><Truck className="h-4 w-4" />Proveedores</NavLink>
+                            {isAdministrator && <><NavLink to="/inventarios/traslados/nuevo" className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><ClipboardList className="h-4 w-4" />Nuevo traslado</NavLink><NavLink to="/inventarios/traslados" end className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><History className="h-4 w-4" />Historial de traslados</NavLink></>}
                         </div>
                     )}
                     <button type="button" onClick={() => setIsVentasOpen((current) => !current)} className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${location.pathname.startsWith('/ventas') ? 'bg-brand-teal text-white' : 'text-slate-600 hover:bg-slate-50'}`}>
@@ -64,8 +69,28 @@ export default function MainLayout({ children }) {
                         <div className="ml-5 space-y-1 border-l border-slate-200 pl-3">
                             <NavLink to="/ventas" end className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><ShoppingCart className="h-4 w-4" />Venta de productos</NavLink>
                             <NavLink to="/ventas/recibos" className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><ReceiptText className="h-4 w-4" />Recibos</NavLink>
+                            <NavLink to="/ventas/facturas/crear" className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><FilePlus2 className="h-4 w-4" />Crear factura</NavLink>
+                            <NavLink to="/ventas/facturas" end className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><Files className="h-4 w-4" />Listado de facturas</NavLink>
                         </div>
                     )}
+                    <MenuGroup label="Control de caja" icon={WalletCards} open={isCajaOpen} active={location.pathname.startsWith('/caja')} onClick={() => setIsCajaOpen(value => !value)}>
+                        <SubLink to="/caja/apertura-cierre" icon={Banknote}>Apertura y cierre</SubLink>
+                        <SubLink to="/caja/cierres" icon={History}>Listado de cierres</SubLink>
+                    </MenuGroup>
+                    <MenuGroup label="Gestión de clientes" icon={Users} open={isClientesOpen} active={location.pathname.startsWith('/clientes')} onClick={() => setIsClientesOpen(value => !value)}>
+                        <SubLink to="/clientes/crear" icon={UserRoundPlus}>Crear cliente</SubLink>
+                        <SubLink to="/clientes/listado" icon={History}>Listado de clientes</SubLink>
+                    </MenuGroup>
+                    <MenuGroup label="Cobros" icon={HandCoins} open={isCobrosOpen} active={location.pathname.startsWith('/cobros')} onClick={() => setIsCobrosOpen(value => !value)}>
+                        <SubLink to="/cobros/estado-cuenta" icon={ReceiptText}>Estado de cuenta</SubLink>
+                        <SubLink to="/cobros/pagar" icon={Banknote}>Pagar abono</SubLink>
+                        <SubLink to="/cobros/listado" icon={ListChecks}>Listado de cobros</SubLink>
+                        {isAdministrator && <SubLink to="/cobros/autorizar" icon={ShieldCheck}>Autorizar crédito</SubLink>}
+                    </MenuGroup>
+                    <MenuGroup label="Reportes" icon={BarChart3} open={isReportesOpen} active={location.pathname.startsWith('/reportes')} onClick={() => setIsReportesOpen(value => !value)}>
+                        <SubLink to="/reportes/consolidado" icon={BarChart3}>Listado de reportes</SubLink>
+                    </MenuGroup>
+                    <NavLink to="/configuracion/datos-maestros" className={({ isActive }) => `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${isActive ? 'bg-brand-teal text-white' : 'text-slate-600 hover:bg-slate-50'}`}><Settings2 className="h-5 w-5" />Datos maestros</NavLink>
                 </nav>
             </aside>
 
@@ -88,6 +113,7 @@ export default function MainLayout({ children }) {
                         
                         {/* 1. Combobox de Sucursales */}
                         <div className="hidden sm:flex relative items-center border border-gray-200 rounded-lg bg-white hover:bg-slate-50 transition-colors focus-within:border-brand-teal focus-within:ring-1 focus-within:ring-brand-teal">
+                            <span className="ml-3 h-3 w-3 rounded-sm border border-black/10" style={{ backgroundColor: branchColor }} />
                             <div className="pl-3 pointer-events-none">
                                 <Building2 className="h-4 w-4 text-slate-400" />
                             </div>
@@ -110,13 +136,9 @@ export default function MainLayout({ children }) {
                         </div>
 
                         {/* 2. Campana de Notificaciones */}
-                        <button className="relative p-2 text-slate-400 hover:text-brand-teal transition-colors">
+                        <NavLink to="/alertas" className="relative p-2 text-slate-400 hover:text-brand-teal transition-colors" title="Alertas">
                             <Bell className="h-5 w-5" />
-                            {/* Globito de notificación */}
-                            <span className="absolute top-1.5 right-1.5 h-4 w-4 bg-brand-teal text-white text-[9px] font-bold flex items-center justify-center rounded-full border border-white">
-                                3
-                            </span>
-                        </button>
+                        </NavLink>
 
                         {/* Línea divisora vertical */}
                         <div className="hidden sm:block h-8 w-px bg-gray-200 mx-1"></div>
@@ -153,10 +175,18 @@ export default function MainLayout({ children }) {
                 </header>
 
                 {/* CONTENIDO DE LA PÁGINA */}
-                <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50">
+                <main className="branch-context flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50">
                     {children}
                 </main>
             </div>
         </div>
     );
+}
+
+function MenuGroup({ label, icon: Icon, open, active, onClick, children }) {
+    return <><button type="button" onClick={onClick} className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${active ? 'bg-brand-teal text-white' : 'text-slate-600 hover:bg-slate-50'}`}><Icon className="h-5 w-5 min-w-[20px]" /><span>{label}</span><ChevronDown className={`ml-auto h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} /></button>{open && <div className="ml-5 space-y-1 border-l border-slate-200 pl-3">{children}</div>}</>;
+}
+
+function SubLink({ to, icon: Icon, children }) {
+    return <NavLink to={to} end className={({ isActive }) => `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-teal-50 font-semibold text-brand-teal' : 'text-slate-600 hover:bg-slate-50'}`}><Icon className="h-4 w-4" />{children}</NavLink>;
 }

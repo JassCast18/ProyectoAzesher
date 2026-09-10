@@ -9,7 +9,10 @@ const getRoleName = (user) => {
     return String(rawRole).trim().toLowerCase();
 };
 
-const isAdministratorRole = (user) => getRoleName(user).includes('admin');
+const isAdministratorRole = (user) => {
+    const role = getRoleName(user);
+    return role.includes('admin') || role === 'demo' || role.includes('superusuario');
+};
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(() => {
@@ -82,8 +85,16 @@ export const AuthProvider = ({ children }) => {
         setSelectedSucursalId(normalizedId);
     };
 
+    const updateSucursalLocal = (idSucursal, changes) => {
+        setSucursales((current) => {
+            const updated = current.map((branch) => String(branch.idSucursal) === String(idSucursal) ? { ...branch, ...changes } : branch);
+            localStorage.setItem('sucursales', JSON.stringify(updated));
+            return updated;
+        });
+    };
+
     return (
-        <AuthContext.Provider value={{ user, sucursales, selectedSucursalId, setSelectedSucursalId: selectSucursal, isSucursalLocked, setIsSucursalLocked, login, logout, isAdministrator: isAdministratorRole(user) }}>
+        <AuthContext.Provider value={{ user, sucursales, selectedSucursalId, setSelectedSucursalId: selectSucursal, updateSucursalLocal, isSucursalLocked, setIsSucursalLocked, login, logout, isAdministrator: isAdministratorRole(user) }}>
             {children}
         </AuthContext.Provider>
     );

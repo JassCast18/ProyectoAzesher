@@ -1,70 +1,16 @@
-import { ShoppingCart, DollarSign, ArrowUpRight, ArrowDownRight, Package } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
-
+import NotificationToast from '../components/NotificationToast';
+const money = new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' });
+const inputDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 export default function DashboardPage() {
-    const { user } = useAuth();
-
-    return (
-        <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-                    Bienvenido, {user?.nombre || 'Administrador general'}
-                    <span className="bg-brand-yellow text-white text-xs px-2 py-1 rounded-md">{user?.rol || 'Dueño'}</span>
-                </h1>
-                <p className="text-sm text-slate-500 mt-1">Este es el resumen general de Distribuidora Aze-Sher's.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="p-3 bg-teal-50 text-brand-teal rounded-full">
-                        <ShoppingCart className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500 font-medium">Ventas del día</p>
-                        <h3 className="text-xl font-bold text-slate-800">Q 28,450.00</h3>
-                        <p className="text-xs text-green-500 flex items-center mt-1">
-                            <ArrowUpRight className="h-3 w-3 mr-1" /> +12.5% vs ayer
-                        </p>
-                    </div>
-                </div>
-
-                <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="p-3 bg-green-50 text-green-600 rounded-full">
-                        <DollarSign className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500 font-medium">Ingresos del mes</p>
-                        <h3 className="text-xl font-bold text-slate-800">Q 125,680.50</h3>
-                        <p className="text-xs text-green-500 flex items-center mt-1">
-                            <ArrowUpRight className="h-3 w-3 mr-1" /> +18.2% vs mes anterior
-                        </p>
-                    </div>
-                </div>
-
-                <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="p-3 bg-orange-50 text-orange-500 rounded-full">
-                        <ArrowDownRight className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500 font-medium">Salidas del mes</p>
-                        <h3 className="text-xl font-bold text-slate-800">Q 67,230.75</h3>
-                        <p className="text-xs text-red-500 flex items-center mt-1">
-                            <ArrowDownRight className="h-3 w-3 mr-1" /> -5.4% vs mes anterior
-                        </p>
-                    </div>
-                </div>
-
-                <div className="bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex items-center gap-4">
-                    <div className="p-3 bg-blue-50 text-blue-500 rounded-full">
-                        <Package className="h-6 w-6" />
-                    </div>
-                    <div>
-                        <p className="text-sm text-slate-500 font-medium">Productos en inventario</p>
-                        <h3 className="text-xl font-bold text-slate-800">2,584</h3>
-                        <p className="text-xs text-slate-400 mt-1">Productos activos</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    const { selectedSucursalId, sucursales } = useAuth(); const [receipts, setReceipts] = useState([]); const [todayReceipts, setTodayReceipts] = useState([]); const [inventory, setInventory] = useState([]); const [notification, setNotification] = useState(null);
+    const branch = sucursales.find(item => String(item.idSucursal) === String(selectedSucursalId));
+    const load = useCallback(async () => { if (!selectedSucursalId) return; const today = new Date(); const monthStart = inputDate(new Date(today.getFullYear(), today.getMonth(), 1)); const date = inputDate(today); try { const [monthResponse, todayResponse, inventoryResponse] = await Promise.all([axiosClient.get('/ventas/recibos', { params: { idSucursal: selectedSucursalId, fechaDesde: monthStart, fechaHasta: date } }), axiosClient.get('/ventas/recibos', { params: { idSucursal: selectedSucursalId, fechaDesde: date, fechaHasta: date } }), axiosClient.get('/inventario/productos', { params: { idSucursal: selectedSucursalId } })]); setReceipts(monthResponse.data.data || []); setTodayReceipts(todayResponse.data.data || []); setInventory(inventoryResponse.data.data || []); } catch (error) { setNotification({ type: 'error', message: error.response?.data?.message || 'No fue posible cargar el resumen.' }); } }, [selectedSucursalId]);
+    useEffect(() => { load(); }, [load]);
+    const validMonth = receipts.filter(row => row.estado !== 'Anulado'); const validToday = todayReceipts.filter(row => row.estado !== 'Anulado');
+    const metrics = useMemo(() => ({ today: validToday.reduce((sum, row) => sum + row.monto, 0), month: validMonth.reduce((sum, row) => sum + row.monto, 0), count: validMonth.length, average: validMonth.length ? validMonth.reduce((sum, row) => sum + row.monto, 0) / validMonth.length : 0, units: inventory.reduce((sum, row) => sum + row.stock, 0), low: inventory.filter(row => row.stock <= 5).length }), [validMonth, validToday, inventory]);
+    return <div className="space-y-5"><NotificationToast notification={notification} onClose={() => setNotification(null)} /><header className="page-title p-5"><h1 className="text-2xl font-bold">Inicio · {branch?.nombreSuc || branch?.nombre}</h1></header><section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><Metric label="Ventas de hoy" value={money.format(metrics.today)} /><Metric label="Ventas del mes" value={money.format(metrics.month)} /><Metric label="Recibos del mes" value={metrics.count} /><Metric label="Venta promedio" value={money.format(metrics.average)} /><Metric label="Unidades disponibles" value={metrics.units} /><Metric label="Productos con existencia baja" value={metrics.low} /></section><section className="overflow-x-auto border bg-white"><div className="flex items-center justify-between border-b p-4"><h2 className="font-bold">Ventas recientes</h2><button onClick={load} className="rounded-md border px-3 py-1.5 text-sm">Actualizar</button></div><table className="w-full min-w-[760px] text-sm"><thead className="bg-slate-100 text-left"><tr><th className="p-4">Recibo</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Pago</th><th className="p-4 text-right">Monto</th></tr></thead><tbody className="divide-y">{receipts.slice(0, 12).map(row => <tr key={row.idRecibo}><td className="p-4 font-semibold">{row.numeroRecibo}</td><td>{new Date(row.fechaPago).toLocaleString('es-GT')}</td><td>{row.clienteNombre}</td><td>{row.vendedorNombre}</td><td className="capitalize">{row.metodoPago}</td><td className={`p-4 text-right font-bold ${row.estado === 'Anulado' ? 'text-red-500 line-through' : ''}`}>{money.format(row.monto)}</td></tr>)}</tbody></table>{!receipts.length && <p className="p-8 text-center text-sm text-slate-500">No hay ventas registradas este mes.</p>}</section></div>;
 }
+function Metric({ label, value }) { return <div className="border bg-white p-5"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold">{value}</p></div>; }

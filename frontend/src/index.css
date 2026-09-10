@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .button-primary { @apply inline-flex items-center justify-center gap-2 rounded-md bg-brand-teal px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50; }
+  .button-secondary { @apply inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50; }
+}
+
+@layer components {
+  .input {
+    @apply h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-800 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-teal-100;
+  }
+}
+
 body {
   background-color: #f3f4f6; /* Fondo gris muy claro para toda la app */
+}
+
+.branch-context {
+  border-top: 4px solid var(--branch-color, #008ba8);
+  box-shadow: inset 4px 0 0 color-mix(in srgb, var(--branch-color, #008ba8) 28%, transparent);
+}
+
+.page-title,
+.branch-context > div > header {
+  background: color-mix(in srgb, var(--branch-color, #008ba8) 18%, white);
+  border: 1px solid color-mix(in srgb, var(--branch-color, #008ba8) 42%, white);
+  border-left: 6px solid var(--branch-color, #008ba8);
 }

@@ -75,7 +75,7 @@ namespace Core.Provider
             }
         }
 
-        public async Task<List<ReciboConsultaDTO>> BuscarRecibosAsync(int idSucursal, string query, DateTime? fechaDesde, DateTime? fechaHasta)
+        public async Task<List<ReciboConsultaDTO>> BuscarRecibosAsync(int idSucursal, string query, DateTime? fechaDesde, DateTime? fechaHasta, string tipoDocumento, string metodoPago)
         {
             await using var connection = new SqlConnection(_connectionString);
             var parametros = new DynamicParameters();
@@ -83,6 +83,8 @@ namespace Core.Provider
             parametros.Add("@Query", query?.Trim() ?? string.Empty);
             parametros.Add("@FechaDesde", fechaDesde);
             parametros.Add("@FechaHasta", fechaHasta);
+            parametros.Add("@TipoDocumento", tipoDocumento);
+            parametros.Add("@MetodoPago", metodoPago);
             var resultado = await connection.QueryAsync<ReciboConsultaDTO>(
                 "dbo.sp_buscar_recibos", parametros, commandType: CommandType.StoredProcedure);
             return resultado.ToList();

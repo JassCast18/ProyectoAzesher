@@ -303,6 +303,7 @@ export default function VentasPage() {
 
     return (
         <div className="space-y-6">
+            <header className="page-title p-5"><h1 className="text-2xl font-bold">Venta</h1></header>
             <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
                 <section className="space-y-6">
                     <div className=" border border-slate-200 bg-white p-5 shadow-sm">

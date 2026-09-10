@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AlertTriangle, Boxes, Clock3, Download, FileSpreadsheet, PackageCheck, PackageX, Search } from 'lucide-react';
+import { Download, FileSpreadsheet, PackageX, Search } from 'lucide-react';
 import axiosClient from '../api/axiosClient';
 import NotificationToast from '../components/NotificationToast';
 import { useAuth } from '../context/AuthContext';
 
 const currency = new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' });
-const dateTime = new Intl.DateTimeFormat('es-GT', { dateStyle: 'long', timeStyle: 'medium' });
+const dateTime = new Intl.DateTimeFormat('es-GT', { dateStyle: 'short', timeStyle: 'short' });
 
 export default function InventarioProductosPage() {
     const { selectedSucursalId, sucursales } = useAuth();
@@ -52,12 +52,14 @@ export default function InventarioProductosPage() {
         loadInventory('');
     }, [loadInventory]);
 
-    const submitSearch = event => {
-        event.preventDefault();
-        const query = search.trim();
-        setAppliedSearch(query);
-        loadInventory(query);
-    };
+    useEffect(() => {
+        const timer = window.setTimeout(() => {
+            const query = search.trim();
+            setAppliedSearch(query);
+            loadInventory(query);
+        }, 350);
+        return () => window.clearTimeout(timer);
+    }, [search, loadInventory]);
 
     const downloadReport = async format => {
         setExporting(format);
@@ -84,37 +86,33 @@ export default function InventarioProductosPage() {
         <div className="mx-auto max-w-[1500px] space-y-5">
             <NotificationToast notification={notification} onClose={() => setNotification(null)} />
 
-            <section className="border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+            <section className="page-title p-5 sm:p-6">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                     <div>
-                        <p className="mb-1 text-xs font-bold uppercase tracking-[0.18em] text-brand-teal">Inventarios / Listado de productos</p>
-                        <h1 className="text-2xl font-bold text-slate-900">Existencias de {branch?.nombreSuc || branch?.nombre || 'la sucursal'}</h1>
-                        <p className="mt-2 max-w-2xl text-sm text-slate-500">Consulta existencias por código o nombre. Este listado es informativo; las entradas se registran en su propio submódulo.</p>
+                        <h1 className="text-2xl font-bold text-slate-900">Inventario · {branch?.nombreSuc || branch?.nombre || 'Sucursal'}</h1>
                     </div>
-                    <div className="grid min-w-[290px] grid-cols-[auto_1fr] gap-x-3 gap-y-1 border-l-4 border-brand-teal bg-slate-50 px-4 py-3 text-sm">
-                        <Clock3 className="row-span-2 mt-1 h-5 w-5 text-brand-teal" />
+                    <div className="min-w-[260px] border-l-4 border-[var(--branch-color)] bg-white/60 px-4 py-3 text-sm">
                         <span className="font-semibold text-slate-800">{dateTime.format(now)}</span>
-                        <span className="text-xs text-slate-500">Última consulta: {lastUpdated ? dateTime.format(lastUpdated) : 'Pendiente'}</span>
+                        <span className="mt-1 block text-xs text-slate-500">Actualizado: {lastUpdated ? dateTime.format(lastUpdated) : 'Pendiente'}</span>
                     </div>
                 </div>
             </section>
 
             <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <Metric icon={Boxes} label="Productos listados" value={products.length} detail={`${totals.units} unidades`} />
-                <Metric icon={PackageCheck} label="Valor en inventario" value={currency.format(totals.value)} detail="Según precio registrado" />
-                <Metric icon={AlertTriangle} label="Existencia baja" value={totals.low} detail="Entre 1 y 5 unidades" tone="amber" />
-                <Metric icon={PackageX} label="Sin existencias" value={totals.empty} detail="Productos con stock cero" tone="red" />
+                <Metric label="Productos" value={products.length} detail={`${totals.units} unidades`} />
+                <Metric label="Valor registrado" value={currency.format(totals.value)} detail="Según precio actual" />
+                <Metric label="Existencia baja" value={totals.low} detail="Entre 1 y 5 unidades" />
+                <Metric label="Sin existencias" value={totals.empty} detail="Productos con stock cero" />
             </section>
 
             <section className="border border-slate-200 bg-white shadow-sm">
                 <div className="flex flex-col gap-3 border-b border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between">
-                    <form onSubmit={submitSearch} className="flex w-full max-w-2xl gap-2">
+                    <div className="flex w-full max-w-2xl gap-2">
                         <label className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                             <input value={search} onChange={event => setSearch(event.target.value)} className="h-10 w-full rounded-lg border border-slate-300 pl-10 pr-3 text-sm outline-none focus:border-brand-teal focus:ring-2 focus:ring-teal-100" placeholder="Código, nombre o descripción del producto" />
                         </label>
-                        <button className="rounded-lg bg-brand-teal px-5 text-sm font-semibold text-white hover:bg-teal-700" type="submit">Verificar</button>
-                    </form>
+                    </div>
                     <div className="flex gap-2">
                         <button disabled={loading || exporting !== ''} onClick={() => downloadReport('pdf')} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-brand-teal hover:text-brand-teal disabled:opacity-50"><Download className="h-4 w-4" />{exporting === 'pdf' ? 'Generando…' : 'PDF'}</button>
                         <button disabled={loading || exporting !== ''} onClick={() => downloadReport('excel')} className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:border-emerald-600 hover:text-emerald-700 disabled:opacity-50"><FileSpreadsheet className="h-4 w-4" />{exporting === 'excel' ? 'Generando…' : 'Excel'}</button>
@@ -135,9 +133,8 @@ export default function InventarioProductosPage() {
     );
 }
 
-function Metric({ icon: Icon, label, value, detail, tone = 'teal' }) {
-    const tones = { teal: 'bg-teal-50 text-brand-teal', amber: 'bg-amber-50 text-amber-700', red: 'bg-red-50 text-red-700' };
-    return <div className="border border-slate-200 bg-white p-4 shadow-sm"><div className="flex items-start justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div><span className={`rounded-lg p-2 ${tones[tone]}`}><Icon className="h-5 w-5" /></span></div></div>;
+function Metric({ label, value, detail }) {
+    return <div className="border border-slate-200 bg-white p-4"><p className="text-sm font-semibold text-slate-600">{label}</p><p className="mt-2 text-2xl font-bold text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div>;
 }
 
 function StockBadge({ stock }) {

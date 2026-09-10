@@ -15,6 +15,10 @@ builder.Services.AddScoped<IAuthProviderDTO, AuthProvider>();
 builder.Services.AddScoped<ICatalogoProviderDTO, CatalogoProvider>();
 builder.Services.AddScoped<IVentaProviderDTO, VentaProvider>();
 builder.Services.AddScoped<IInventarioProviderDTO, InventarioProvider>();
+builder.Services.AddScoped<IFacturacionProviderDTO, FacturacionProvider>();
+builder.Services.AddScoped<IOperacionProviderDTO, OperacionProvider>();
+builder.Services.AddScoped<IDatosMaestrosProviderDTO, DatosMaestrosProvider>();
+builder.Services.AddScoped<ICobroProviderDTO, CobroProvider>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var jwtSecret = jwtSettings["Secret"]

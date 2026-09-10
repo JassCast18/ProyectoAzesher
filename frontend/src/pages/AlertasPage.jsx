@@ -1,0 +1,2 @@
+import { Bell } from 'lucide-react';
+export default function AlertasPage(){return <div className="space-y-5"><header className="page-title p-5"><h1 className="text-2xl font-bold">Alertas</h1></header><section className="border bg-white p-10 text-center"><Bell className="mx-auto h-8 w-8 text-brand-teal"/><h2 className="mt-4 font-bold">Sin alertas pendientes</h2><p className="mt-1 text-sm text-slate-500">Aquí aparecerán los avisos de cobros, inventario, caja y ventas.</p></section></div>;}

@@ -100,14 +100,11 @@ BEGIN
         DECLARE @IdSesion INT;
         SELECT TOP 1 @IdSesion = id_sesion
         FROM dbo.sesion_caja
-        WHERE id_usuario = @IdUsuario AND fecha_cierre IS NULL
+        WHERE id_usuario = @IdUsuario AND id_sucursal = @IdSucursal AND fecha_cierre IS NULL
         ORDER BY fecha_apertura DESC;
 
         IF ISNULL(@IdSesion, 0) <= 0
-        BEGIN
-            INSERT INTO dbo.sesion_caja (id_usuario) VALUES (@IdUsuario);
-            SET @IdSesion = CAST(SCOPE_IDENTITY() AS INT);
-        END
+            THROW 50016, 'Debes abrir la caja de esta sucursal antes de autorizar una venta.', 1;
 
         DECLARE @IdVenta INT;
         INSERT INTO dbo.venta (fecha, total, tipo_pago, id_cliente, id_vendedor, id_sesion)
@@ -179,11 +176,11 @@ BEGIN
 
         DECLARE @IdFactura INT;
         INSERT INTO dbo.factura (numero_factura, fecha_emision, total, estado, id_venta)
-        VALUES ('TMP', GETDATE(), @Total, 'Emitida', @IdVenta);
+        VALUES ('BORRADOR', GETDATE(), @Total, 'Pendiente', @IdVenta);
         SET @IdFactura = CAST(SCOPE_IDENTITY() AS INT);
 
         UPDATE dbo.factura
-        SET numero_factura = CONCAT('FAC-', RIGHT('000000' + CAST(@IdFactura AS VARCHAR(10)), 6))
+        SET numero_factura = CONCAT('BOR-', RIGHT('000000' + CAST(@IdFactura AS VARCHAR(10)), 6))
         WHERE id_factura = @IdFactura;
 
         DECLARE @IdRecibo INT;

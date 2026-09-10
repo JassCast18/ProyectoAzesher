@@ -68,7 +68,8 @@ namespace Core.Controllers
                         Token = token,
                         Sucursales = listaSucursales.Select(s => new {
                             idSucursal = s.IdSucursal,
-                            nombreSuc = s.Nombre
+                            nombreSuc = s.Nombre,
+                            colorIdentificacion = s.ColorIdentificacion
                         }).ToList()
                     }
                 });

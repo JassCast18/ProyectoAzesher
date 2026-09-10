@@ -14,7 +14,9 @@ BEGIN
     SELECT 
         id_sucursal AS IdSucursal,
         nombre,
-        direccion
+        direccion,
+        telefono,
+        color_identificacion AS ColorIdentificacion
     FROM 
         dbo.sucursal
     WHERE 

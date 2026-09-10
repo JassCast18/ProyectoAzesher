@@ -17,6 +17,12 @@ public partial class Traslado
 
     public string Estado { get; set; }
 
+    public string NumeroTraslado { get; set; }
+
+    public string Observaciones { get; set; }
+
+    public int? IdUsuario { get; set; }
+
     public virtual ICollection<DetalleTraslado> DetalleTraslados { get; set; } = new List<DetalleTraslado>();
 
     public virtual Sucursal IdSucursalDestinoNavigation { get; set; }
