@@ -13,7 +13,7 @@ BEGIN
         r.id_recibo AS IdRecibo,
         r.numero_recibo AS NumeroRecibo,
         r.fecha_pago AS FechaPago,
-        CASE WHEN r.metodo_pago = 'credito' THEN ISNULL(cx.monto_inicial, 0) ELSE r.monto END AS Monto,
+        r.monto AS Monto,
         cx.saldo_pendiente AS SaldoPendiente,
         r.metodo_pago AS MetodoPago,
         r.estado AS Estado,

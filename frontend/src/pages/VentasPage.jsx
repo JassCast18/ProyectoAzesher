@@ -95,6 +95,8 @@ export default function VentasPage() {
         setIsSucursalLocked(cartItems.length > 0);
     }, [cartItems.length, setIsSucursalLocked]);
 
+    useEffect(() => () => setIsSucursalLocked(false), [setIsSucursalLocked]);
+
     useEffect(() => {
 
         if (!effectiveSucursalId) {

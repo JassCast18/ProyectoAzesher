@@ -3,6 +3,8 @@ CREATE OR ALTER PROCEDURE dbo.sp_buscar_clientes_credito_core
 AS
 BEGIN
     SET NOCOUNT ON;
+    UPDATE dbo.cliente_credito SET activo=0,estado_autorizacion='Rechazado por vigencia'
+    WHERE activo=1 AND fecha_vencimiento_autorizacion<CAST(GETDATE() AS DATE);
     SELECT TOP 20
         c.id_cliente AS IdCliente,
         c.nombre AS Nombre,
@@ -16,7 +18,8 @@ BEGIN
     INNER JOIN dbo.cliente c ON c.id_cliente = cc.id_cliente
     LEFT JOIN dbo.venta v ON v.id_cliente = c.id_cliente
     LEFT JOIN dbo.cuenta_cobrar cx ON cx.id_venta = v.id_venta AND cx.estado = 'Pendiente'
-    WHERE cc.activo = 1
+    WHERE cc.activo = 1 AND ISNULL(cc.estado_autorizacion,'Autorizado')='Autorizado'
+      AND (cc.fecha_vencimiento_autorizacion IS NULL OR cc.fecha_vencimiento_autorizacion>=CAST(GETDATE() AS DATE))
       AND (@Query = '' OR c.nombre LIKE '%' + @Query + '%' OR ISNULL(c.nit, '') LIKE '%' + @Query + '%')
     GROUP BY c.id_cliente, c.nombre, c.nit, c.telefono, c.direccion, cc.limite_credito
     ORDER BY c.nombre;

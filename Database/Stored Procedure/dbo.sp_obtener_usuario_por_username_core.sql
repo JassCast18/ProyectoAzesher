@@ -13,18 +13,20 @@ BEGIN
 
     SELECT 
         u.id_usuario,
-        u.nombre as [Nombre Usuario],
+        CONCAT(u.nombre,CASE WHEN NULLIF(LTRIM(RTRIM(u.apellidos)),'') IS NULL THEN '' ELSE CONCAT(' ',u.apellidos) END) nombre,
         u.username,
         u.password,
-        u.rol,
+        u.rol,u.fecha_expiracion_password,u.requiere_cambio_password,
         u.id_sucursal,
-        s.nombre as [Sucursal]
+        s.nombre as nombre_sucursal,
+        CASE WHEN LOWER(u.rol) IN ('administrador','admin','demo','superusuario') THEN '*'
+             ELSE ISNULL((SELECT STRING_AGG(m.codigo,',') FROM dbo.usuario_modulo um JOIN dbo.modulo_sistema m ON m.id_modulo=um.id_modulo WHERE um.id_usuario=u.id_usuario AND m.activo=1),'') END permisos
     FROM 
         dbo.usuario u
     LEFT JOIN 
         dbo.sucursal s ON u.id_sucursal = s.id_sucursal
     WHERE 
-        u.username = @Username;
+        u.username = @Username AND ISNULL(u.activo,1)=1;
 END
 GO
 

@@ -8,6 +8,8 @@ IF COL_LENGTH('dbo.abono','id_recibo_origen') IS NULL ALTER TABLE dbo.abono ADD 
 IF COL_LENGTH('dbo.abono','id_sucursal') IS NULL ALTER TABLE dbo.abono ADD id_sucursal INT NULL;
 IF COL_LENGTH('dbo.abono','id_sesion') IS NULL ALTER TABLE dbo.abono ADD id_sesion INT NULL;
 IF COL_LENGTH('dbo.abono','id_usuario') IS NULL ALTER TABLE dbo.abono ADD id_usuario INT NULL;
+IF COL_LENGTH('dbo.abono','correo_contacto') IS NULL ALTER TABLE dbo.abono ADD correo_contacto VARCHAR(150) NULL;
+IF COL_LENGTH('dbo.abono','telefono_contacto') IS NULL ALTER TABLE dbo.abono ADD telefono_contacto VARCHAR(30) NULL;
 GO
 IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE name='fk_abono_recibo') ALTER TABLE dbo.abono ADD CONSTRAINT fk_abono_recibo FOREIGN KEY(id_recibo_origen) REFERENCES dbo.recibo(id_recibo);
 IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE name='fk_abono_sucursal') ALTER TABLE dbo.abono ADD CONSTRAINT fk_abono_sucursal FOREIGN KEY(id_sucursal) REFERENCES dbo.sucursal(id_sucursal);
@@ -25,6 +27,13 @@ IF COL_LENGTH('dbo.cliente_credito','fecha_vencimiento_autorizacion') IS NULL AL
 IF COL_LENGTH('dbo.cliente_credito','observaciones') IS NULL ALTER TABLE dbo.cliente_credito ADD observaciones VARCHAR(500) NULL;
 IF COL_LENGTH('dbo.cliente_credito','fecha_autorizacion') IS NULL ALTER TABLE dbo.cliente_credito ADD fecha_autorizacion DATETIME NOT NULL CONSTRAINT df_cliente_credito_fecha DEFAULT GETDATE();
 IF COL_LENGTH('dbo.cliente_credito','id_usuario_autorizo') IS NULL ALTER TABLE dbo.cliente_credito ADD id_usuario_autorizo INT NULL;
+IF COL_LENGTH('dbo.cliente_credito','estado_autorizacion') IS NULL ALTER TABLE dbo.cliente_credito ADD estado_autorizacion VARCHAR(30) NOT NULL CONSTRAINT df_cliente_credito_estado DEFAULT 'Autorizado';
+IF COL_LENGTH('dbo.cliente_credito','fecha_cambio_estado') IS NULL ALTER TABLE dbo.cliente_credito ADD fecha_cambio_estado DATETIME NULL;
+GO
+UPDATE dbo.cliente_credito SET fecha_cambio_estado=ISNULL(fecha_autorizacion,GETDATE()) WHERE activo=0 AND fecha_cambio_estado IS NULL;
 GO
 IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE name='fk_cliente_credito_usuario') ALTER TABLE dbo.cliente_credito ADD CONSTRAINT fk_cliente_credito_usuario FOREIGN KEY(id_usuario_autorizo) REFERENCES dbo.usuario(id_usuario);
+GO
+
+IF COL_LENGTH('dbo.cliente','correo') IS NULL ALTER TABLE dbo.cliente ADD correo VARCHAR(150) NULL;
 GO

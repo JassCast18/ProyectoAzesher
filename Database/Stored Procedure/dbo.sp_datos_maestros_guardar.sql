@@ -19,8 +19,9 @@ BEGIN
     END
     ELSE IF @Entidad='productos'
     BEGIN
-        IF @Id IS NULL BEGIN INSERT dbo.producto(cod_producto,nombre,descripcion,precio) VALUES(JSON_VALUE(@Datos,'$.codigo'),JSON_VALUE(@Datos,'$.nombre'),JSON_VALUE(@Datos,'$.descripcion'),TRY_CONVERT(DECIMAL(12,2),JSON_VALUE(@Datos,'$.precio'))); SELECT CONVERT(INT,SCOPE_IDENTITY()); END
-        ELSE BEGIN UPDATE dbo.producto SET cod_producto=JSON_VALUE(@Datos,'$.codigo'),nombre=JSON_VALUE(@Datos,'$.nombre'),descripcion=JSON_VALUE(@Datos,'$.descripcion'),precio=TRY_CONVERT(DECIMAL(12,2),JSON_VALUE(@Datos,'$.precio')) WHERE id_producto=@Id; SELECT @Id; END
+        DECLARE @idCategoria INT=TRY_CONVERT(INT,JSON_VALUE(@Datos,'$.idCategoria'));
+        IF @Id IS NULL BEGIN INSERT dbo.producto(cod_producto,nombre,descripcion,precio,id_categoria) VALUES(JSON_VALUE(@Datos,'$.codigo'),JSON_VALUE(@Datos,'$.nombre'),JSON_VALUE(@Datos,'$.descripcion'),TRY_CONVERT(DECIMAL(12,2),JSON_VALUE(@Datos,'$.precio')),@idCategoria); SELECT CONVERT(INT,SCOPE_IDENTITY()); END
+        ELSE BEGIN UPDATE dbo.producto SET cod_producto=JSON_VALUE(@Datos,'$.codigo'),nombre=JSON_VALUE(@Datos,'$.nombre'),descripcion=JSON_VALUE(@Datos,'$.descripcion'),precio=TRY_CONVERT(DECIMAL(12,2),JSON_VALUE(@Datos,'$.precio')),id_categoria=@idCategoria WHERE id_producto=@Id; SELECT @Id; END
     END
     ELSE IF @Entidad='proveedor-producto'
     BEGIN
@@ -48,6 +49,21 @@ BEGIN
         DECLARE @idCliente INT=TRY_CONVERT(INT,JSON_VALUE(@Datos,'$.idCliente'));
         IF @Id IS NULL BEGIN INSERT dbo.cliente_credito(id_cliente,limite_credito,activo) VALUES(@idCliente,TRY_CONVERT(DECIMAL(12,2),JSON_VALUE(@Datos,'$.limiteCredito')),1); SELECT CONVERT(INT,SCOPE_IDENTITY()); END
         ELSE BEGIN UPDATE dbo.cliente_credito SET id_cliente=@idCliente,limite_credito=TRY_CONVERT(DECIMAL(12,2),JSON_VALUE(@Datos,'$.limiteCredito')),activo=COALESCE(TRY_CONVERT(BIT,JSON_VALUE(@Datos,'$.activo')),1) WHERE id_cliente_credito=@Id; SELECT @Id; END
+    END
+    ELSE IF @Entidad='categorias-producto'
+    BEGIN
+        IF @Id IS NULL BEGIN INSERT dbo.categoria_producto(nombre,descripcion,activo) VALUES(JSON_VALUE(@Datos,'$.nombre'),JSON_VALUE(@Datos,'$.descripcion'),COALESCE(TRY_CONVERT(BIT,JSON_VALUE(@Datos,'$.activo')),1)); SELECT CONVERT(INT,SCOPE_IDENTITY()); END
+        ELSE BEGIN UPDATE dbo.categoria_producto SET nombre=JSON_VALUE(@Datos,'$.nombre'),descripcion=JSON_VALUE(@Datos,'$.descripcion'),activo=COALESCE(TRY_CONVERT(BIT,JSON_VALUE(@Datos,'$.activo')),1) WHERE id_categoria=@Id; SELECT @Id; END
+    END
+    ELSE IF @Entidad='motivos-salida'
+    BEGIN
+        IF @Id IS NULL BEGIN INSERT dbo.motivo_salida_inventario(codigo,nombre,orden,activo) VALUES(LOWER(REPLACE(JSON_VALUE(@Datos,'$.codigo'),' ','_')),JSON_VALUE(@Datos,'$.nombre'),COALESCE(TRY_CONVERT(INT,JSON_VALUE(@Datos,'$.orden')),0),COALESCE(TRY_CONVERT(BIT,JSON_VALUE(@Datos,'$.activo')),1)); SELECT CONVERT(INT,SCOPE_IDENTITY()); END
+        ELSE BEGIN UPDATE dbo.motivo_salida_inventario SET codigo=LOWER(REPLACE(JSON_VALUE(@Datos,'$.codigo'),' ','_')),nombre=JSON_VALUE(@Datos,'$.nombre'),orden=COALESCE(TRY_CONVERT(INT,JSON_VALUE(@Datos,'$.orden')),0),activo=COALESCE(TRY_CONVERT(BIT,JSON_VALUE(@Datos,'$.activo')),1) WHERE id_motivo=@Id; SELECT @Id; END
+    END
+    ELSE IF @Entidad='preguntas-evaluacion'
+    BEGIN
+        IF @Id IS NULL BEGIN INSERT dbo.pregunta_evaluacion(pregunta,orden,activo) VALUES(JSON_VALUE(@Datos,'$.pregunta'),COALESCE(TRY_CONVERT(INT,JSON_VALUE(@Datos,'$.orden')),0),COALESCE(TRY_CONVERT(BIT,JSON_VALUE(@Datos,'$.activo')),1)); SELECT CONVERT(INT,SCOPE_IDENTITY()); END
+        ELSE BEGIN UPDATE dbo.pregunta_evaluacion SET pregunta=JSON_VALUE(@Datos,'$.pregunta'),orden=COALESCE(TRY_CONVERT(INT,JSON_VALUE(@Datos,'$.orden')),0),activo=COALESCE(TRY_CONVERT(BIT,JSON_VALUE(@Datos,'$.activo')),1) WHERE id_pregunta=@Id; SELECT @Id; END
     END
     ELSE THROW 50001, 'Catálogo de datos maestros no permitido.', 1;
 END

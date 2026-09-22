@@ -10,6 +10,7 @@ BEGIN
     SELECT
         i.id_inventario AS IdInventario,
         p.id_producto AS IdProducto,
+        p.cod_producto AS Codigo,
         p.nombre AS Nombre,
         p.descripcion AS Descripcion,
         p.precio AS Precio,

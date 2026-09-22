@@ -58,6 +58,9 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM @Detalles)
             THROW 50003, 'El recibo debe incluir al menos un producto.', 1;
 
+        IF @Total <= 0
+            THROW 50017, 'El total de la venta debe ser mayor que cero.', 1;
+
         IF EXISTS (SELECT 1 FROM @Detalles WHERE Cantidad <= 0)
             THROW 50004, 'Las cantidades de los productos deben ser mayores que cero.', 1;
 
@@ -100,11 +103,11 @@ BEGIN
         DECLARE @IdSesion INT;
         SELECT TOP 1 @IdSesion = id_sesion
         FROM dbo.sesion_caja
-        WHERE id_usuario = @IdUsuario AND id_sucursal = @IdSucursal AND fecha_cierre IS NULL
+        WHERE id_sucursal = @IdSucursal AND fecha_cierre IS NULL
         ORDER BY fecha_apertura DESC;
 
         IF ISNULL(@IdSesion, 0) <= 0
-            THROW 50016, 'Debes abrir la caja de esta sucursal antes de autorizar una venta.', 1;
+            THROW 50016, 'Debe existir una caja abierta en esta sucursal antes de autorizar una venta.', 1;
 
         DECLARE @IdVenta INT;
         INSERT INTO dbo.venta (fecha, total, tipo_pago, id_cliente, id_vendedor, id_sesion)
@@ -136,7 +139,10 @@ BEGIN
             FROM dbo.cliente_credito cc
             LEFT JOIN dbo.venta vx ON vx.id_cliente = cc.id_cliente
             LEFT JOIN dbo.cuenta_cobrar cx ON cx.id_venta = vx.id_venta AND cx.estado = 'Pendiente'
-            WHERE cc.id_cliente = @IdCliente AND cc.activo = 1
+            WHERE cc.id_cliente = @IdCliente
+              AND cc.activo = 1
+              AND ISNULL(cc.estado_autorizacion, 'Autorizado') = 'Autorizado'
+              AND (cc.fecha_vencimiento_autorizacion IS NULL OR cc.fecha_vencimiento_autorizacion >= CAST(GETDATE() AS DATE))
             GROUP BY cc.limite_credito;
 
             IF @Disponible IS NULL

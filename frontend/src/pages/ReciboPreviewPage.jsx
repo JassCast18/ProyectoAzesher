@@ -16,7 +16,9 @@ export default function ReciboPreviewPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const receiptDraft = location.state?.receiptDraft;
-    const { setIsSucursalLocked } = useAuth();
+    const { setIsSucursalLocked, selectedSucursalId, sucursales } = useAuth();
+    const selectedBranch = sucursales.find(branch => String(branch.idSucursal) === String(selectedSucursalId));
+    const branchColor = selectedBranch?.colorIdentificacion || '#008BA8';
 
     const [pdfUrl, setPdfUrl] = useState('');
     const [pdfVersion, setPdfVersion] = useState(0);
@@ -119,7 +121,7 @@ export default function ReciboPreviewPage() {
                 setNotification({ message: 'No se pudo autorizar el recibo porque no se generó su registro.', type: 'error' });
             }
         } catch (error) {
-            setNotification({ message: error.response?.data?.message || 'No fue posible autorizar el recibo.', type: 'error' });
+            setNotification({ message: error.response?.data?.errors || error.response?.data?.message || 'No fue posible autorizar el recibo.', type: 'error' });
         } finally {
             setIsAuthorizing(false);
         }
@@ -160,7 +162,7 @@ export default function ReciboPreviewPage() {
             <div className="space-y-6">
                 <section className="space-y-5">
                     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                        <div className={`flex flex-col gap-4 border-b px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between ${isCredit ? 'border-slate-600 bg-slate-700' : 'border-teal-800 bg-teal-900'}`}>
+                        <div className="flex flex-col gap-4 border-b px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between" style={{ backgroundColor: isCredit ? '#334155' : branchColor, borderColor: branchColor }}>
                             <div className="flex items-center gap-4">
                                 <div>
                                     <h1 className="text-2xl font-semibold text-white">{isCredit ? 'Nota de crédito' : 'Recibo'}</h1>
@@ -196,11 +198,11 @@ export default function ReciboPreviewPage() {
                                 </button>
                                 <button type="button" onClick={() => downloadExport('docx')} disabled={!savedReceipt?.idRecibo} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"><FileText className="h-4 w-4" />Word</button>
                                 <button type="button" onClick={() => downloadExport('excel')} disabled={!savedReceipt?.idRecibo} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800 disabled:cursor-not-allowed disabled:opacity-50"><Table2 className="h-4 w-4" />Excel</button>
-                                {!isCredit && savedReceipt?.idRecibo && !['Autorizada','Emitida'].includes(savedReceipt.estadoFactura) && <button type="button" onClick={() => navigate(`/ventas/facturas/crear?recibo=${savedReceipt.idRecibo}`)} className="inline-flex items-center gap-2 rounded-full bg-sky-200 px-4 py-2 text-sm font-semibold text-sky-950"><Receipt className="h-4 w-4" />Convertir en factura</button>}
+                                {!isCredit && savedReceipt?.idRecibo && !['Autorizada','Emitida'].includes(savedReceipt.estadoFactura) && <button type="button" onClick={() => navigate(`/ventas/facturas/crear?recibo=${savedReceipt.numeroRecibo}`)} className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold" style={{ color: branchColor }}><Receipt className="h-4 w-4" />Convertir en factura</button>}
                             </div>
                         </div>
 
-                        <div className="border-b border-teal-100 bg-teal-50/70 px-5 py-3 text-sm text-teal-950">
+                        <div className="border-b bg-white px-5 py-3 text-sm text-slate-700" style={{ borderColor: branchColor }}>
                             <span className="font-semibold text-teal-900">{isCredit ? 'Nota pendiente:' : 'Recibo pendiente:'}</span> {receiptDraft.numeroRecibo || 'se asigna al guardar'}
                             {' · '}
                             <span className="font-semibold text-teal-900">Factura:</span> {receiptDraft.numeroFactura}

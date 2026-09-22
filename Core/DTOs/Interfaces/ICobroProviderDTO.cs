@@ -7,6 +7,7 @@ public interface ICobroProviderDTO
     Task<EstadoCuentaDTO> EstadoCuentaAsync(int idSucursal,int idCliente,DateTime? desde,DateTime? hasta);
     Task<int> RegistrarAbonoAsync(RegistrarAbonoDTO request,int idUsuario,int idSucursal);
     Task<AbonoReciboDTO?> ObtenerAbonoAsync(int idAbono);
+    Task<List<AbonoConsultaDTO>> ListarAbonosAsync(int branch,string query,DateTime? from,DateTime? to,string method);
     Task<List<AutorizacionCreditoDTO>> AutorizacionesAsync(string query);
     Task<int> GuardarAutorizacionAsync(GuardarAutorizacionCreditoDTO request,int idUsuario);
 }

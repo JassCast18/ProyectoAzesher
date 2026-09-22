@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Eye, FilePlus2, FileText, Search, Table2, Trash2, Printer } from 'lucide-react';
+import { Eye, FilePlus2, FileText, Search, Table2, Trash2, Printer, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
@@ -12,7 +12,7 @@ export default function RecibosPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { selectedSucursalId } = useAuth();
-    const [filters, setFilters] = useState({ query: searchParams.get('recibo') || searchParams.get('cliente') || '', fechaDesde: '', fechaHasta: '', tipoDocumento: searchParams.get('tipo') === 'nota' ? 'nota' : 'recibo', metodoPago: '' });
+    const [filters, setFilters] = useState({ query: searchParams.get('recibo') || searchParams.get('cliente') || '', fechaDesde: '', fechaHasta: '', tipoDocumento: ['nota','abono'].includes(searchParams.get('tipo')) ? searchParams.get('tipo') : 'recibo', metodoPago: '' });
     const filtersRef = useRef(filters);
     const [receipts, setReceipts] = useState([]);
     const [selectedIds, setSelectedIds] = useState([]);
@@ -22,6 +22,9 @@ export default function RecibosPage() {
     const [cancelTarget, setCancelTarget] = useState(null);
     const [cancelReason, setCancelReason] = useState('');
     const [cancelling, setCancelling] = useState(false);
+    const [invoiceTarget, setInvoiceTarget] = useState(null);
+    const [invoiceForm, setInvoiceForm] = useState({ nombre: '', nit: 'CF', direccion: '' });
+    const autoSearched = useRef(false);
 
     useEffect(() => { filtersRef.current = filters; }, [filters]);
     useEffect(() => { setReceipts([]); setSelectedIds([]); }, [selectedSucursalId]);
@@ -33,11 +36,22 @@ export default function RecibosPage() {
         setLoading(true);
         try {
             const current = filtersRef.current;
-            const response = await axiosClient.get('/ventas/recibos', { params: { idSucursal: selectedSucursalId, query: current.query, fechaDesde: current.fechaDesde || null, fechaHasta: current.fechaHasta || null, tipoDocumento: current.tipoDocumento, metodoPago: current.metodoPago } });
-            setReceipts(response.data?.data ?? []); setSelectedIds([]);
+            if (current.tipoDocumento === 'abono') {
+                const response = await axiosClient.get('/cobros/abonos', { params: { idSucursal: selectedSucursalId, query: current.query, fechaDesde: current.fechaDesde || null, fechaHasta: current.fechaHasta || null, metodoPago: current.metodoPago } });
+                setReceipts((response.data?.data ?? []).map(row => ({ ...row, idRecibo: -row.idAbono, numeroRecibo: row.numeroAbono, fechaPago: row.fecha, clienteNombre: row.cliente, clienteNit: row.nit, estado: 'Registrado', tipoAbono: true })));
+            } else {
+                const response = await axiosClient.get('/ventas/recibos', { params: { idSucursal: selectedSucursalId, query: current.query, fechaDesde: current.fechaDesde || null, fechaHasta: current.fechaHasta || null, tipoDocumento: current.tipoDocumento, metodoPago: current.metodoPago } });
+                setReceipts(response.data?.data ?? []);
+            }
+            setSelectedIds([]);
         } catch (error) { setNotification({ message: error.response?.data?.message || 'No fue posible cargar los documentos.', type: 'error' }); }
         finally { setLoading(false); }
     }, [selectedSucursalId]);
+    useEffect(() => {
+        if (!selectedSucursalId || autoSearched.current || !(searchParams.get('recibo') || searchParams.get('cliente'))) return;
+        autoSearched.current = true;
+        loadReceipts();
+    }, [selectedSucursalId, searchParams, loadReceipts]);
     const selectDocumentType = tipoDocumento => {
         const next = { ...filters, tipoDocumento, metodoPago: tipoDocumento === 'nota' ? 'credito' : '' };
         setFilters(next); filtersRef.current = next; setReceipts([]); setSelectedIds([]);
@@ -50,7 +64,7 @@ export default function RecibosPage() {
         setExporting(true);
         const pdfWindows = format === 'pdf' ? selected.map(() => window.open('', '_blank')) : [];
         try {
-            const files = await Promise.all(selected.map(receipt => axiosClient.get(`/ventas/recibos/${receipt.idRecibo}/${format}`, { responseType: 'blob' })));
+            const files = await Promise.all(selected.map(receipt => axiosClient.get(receipt.tipoAbono ? `/cobros/abonos/${receipt.idAbono}/pdf` : `/ventas/recibos/${receipt.idRecibo}/${format}`, { responseType: 'blob' })));
             files.forEach((response, index) => {
                 const url = URL.createObjectURL(response.data);
                 if (format === 'pdf') {
@@ -75,16 +89,27 @@ export default function RecibosPage() {
         try {
             await axiosClient.post(`/ventas/recibos/${cancelTarget.idRecibo}/anular`, { idSucursal: Number(selectedSucursalId), motivo: cancelReason.trim() });
             setCancelTarget(null); setCancelReason(''); setNotification({ message: 'Documento anulado y productos devueltos al inventario.', type: 'success' }); await loadReceipts();
-        } catch (error) { setNotification({ message: error.response?.data?.message || 'No fue posible anular el documento.', type: 'error' }); }
+        } catch (error) { setNotification({ message: error.response?.data?.errors || error.response?.data?.message || 'No fue posible anular el documento.', type: 'error' }); }
         finally { setCancelling(false); }
+    };
+    const invoicePayment = async () => {
+        try {
+            const preview = window.open('', '_blank');
+            const response = await axiosClient.post('/facturacion/abonos', { idAbono: invoiceTarget.idAbono, idSucursal: Number(selectedSucursalId), ...invoiceForm });
+            const idFactura = response.data.data.idFactura;
+            const pdf = await axiosClient.get(`/facturacion/${idFactura}/pdf`, { responseType: 'blob' });
+            if (preview) preview.location.href = URL.createObjectURL(pdf.data);
+            setInvoiceTarget(null); setNotification({ type: 'success', message: 'Abono facturado correctamente.' }); await loadReceipts();
+        } catch (error) { setNotification({ type: 'error', message: error.response?.data?.message || 'No fue posible facturar el abono.' }); }
     };
 
     const isNote = filters.tipoDocumento === 'nota';
+    const isPayment = filters.tipoDocumento === 'abono';
     return <div className="space-y-5">
-        <header className="page-title p-5"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><h1 className="text-xl font-semibold text-slate-900">{isNote ? 'Notas de crédito' : 'Recibos'}</h1><span className="text-sm text-slate-500">{receipts.length} resultados</span></div></header>
+        <header className="page-title p-5"><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><h1 className="text-xl font-semibold text-slate-900">{isNote ? 'Notas de crédito' : isPayment ? 'Recibos de abono' : 'Recibos'}</h1><span className="text-sm text-slate-500">{receipts.length} resultados</span></div></header>
         <section className="border bg-white">
-            <div className="flex border-b"><button onClick={() => selectDocumentType('recibo')} className={`px-5 py-3 text-sm font-semibold ${!isNote ? 'border-b-2 border-brand-teal text-brand-teal' : 'text-slate-500'}`}>Recibos</button><button onClick={() => selectDocumentType('nota')} className={`px-5 py-3 text-sm font-semibold ${isNote ? 'border-b-2 border-brand-teal text-brand-teal' : 'text-slate-500'}`}>Notas de crédito</button></div>
-            <div className="grid gap-3 p-5 lg:grid-cols-[1fr_160px_160px_170px_auto]"><input value={filters.query} onChange={event => setFilters({ ...filters, query: event.target.value })} placeholder="Cliente, NIT o número" className="input" /><input type="date" value={filters.fechaDesde} onChange={event => setFilters({ ...filters, fechaDesde: event.target.value })} className="input" /><input type="date" value={filters.fechaHasta} onChange={event => setFilters({ ...filters, fechaHasta: event.target.value })} className="input" /><select disabled={isNote} value={filters.metodoPago} onChange={event => setFilters({ ...filters, metodoPago: event.target.value })} className="input"><option value="">Todos los pagos</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="cheque">Cheque</option><option value="tarjeta">Tarjeta</option></select><button type="button" onClick={loadReceipts} className="inline-flex items-center justify-center gap-2 rounded-md bg-brand-teal px-4 py-2.5 text-sm font-semibold text-white"><Search className="h-4 w-4" />Buscar</button></div>
+            <div className="flex border-b"><button onClick={() => selectDocumentType('recibo')} className={`px-5 py-3 text-sm font-semibold ${!isNote && !isPayment ? 'border-b-2 border-brand-teal text-brand-teal' : 'text-slate-500'}`}>Recibos</button><button onClick={() => selectDocumentType('abono')} className={`px-5 py-3 text-sm font-semibold ${isPayment ? 'border-b-2 border-brand-teal text-brand-teal' : 'text-slate-500'}`}>Recibos de abono</button><button onClick={() => selectDocumentType('nota')} className={`px-5 py-3 text-sm font-semibold ${isNote ? 'border-b-2 border-brand-teal text-brand-teal' : 'text-slate-500'}`}>Notas de crédito</button></div>
+            <div className="grid gap-3 p-5 lg:grid-cols-[1fr_160px_160px_170px_auto]"><input value={filters.query} onChange={event => setFilters({ ...filters, query: event.target.value })} placeholder="Cliente, NIT o número" className="input" /><input type="date" value={filters.fechaDesde} onChange={event => setFilters({ ...filters, fechaDesde: event.target.value })} className="input" /><input type="date" value={filters.fechaHasta} onChange={event => setFilters({ ...filters, fechaHasta: event.target.value })} className="input" /><select disabled={isNote} value={filters.metodoPago} onChange={event => setFilters({ ...filters, metodoPago: event.target.value })} className="input"><option value="">Todos los pagos</option><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="cheque">Cheque</option><option value="tarjeta">Tarjeta</option></select><button type="button" onClick={loadReceipts} className="button-primary"><Search className="h-4 w-4" />Buscar</button></div>
         </section>
         <section className="border border-slate-200 bg-white shadow-sm">
             <div className="overflow-x-auto"><table className="min-w-full text-sm"><thead className="bg-slate-50 text-left text-xs uppercase text-slate-500"><tr><th className="w-12 p-4"><input type="checkbox" checked={receipts.length > 0 && selectedIds.length === receipts.length} onChange={toggleAll} aria-label="Seleccionar todos" /></th><th className="p-4">Número</th><th className="p-4">Fecha</th><th className="p-4">Cliente</th><th className="p-4">Pago</th><th className="p-4 text-right">Monto</th><th className="p-4">Estado</th></tr></thead>
@@ -92,11 +117,12 @@ export default function RecibosPage() {
             </table></div>
             <footer className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-t bg-slate-50 px-4 py-3">
                 <span className="text-sm font-medium text-slate-600">{selected.length ? `${selected.length} seleccionado${selected.length === 1 ? '' : 's'}` : 'Selecciona una o varias filas'}</span>
-                <div className="flex flex-wrap justify-end gap-2"><Action icon={Printer} label="Imprimir PDF" disabled={!selected.length || exporting} onClick={() => exportSelected('pdf')} /><Action icon={FileText} label="Word" disabled={!selected.length || exporting} onClick={() => exportSelected('docx')} /><Action icon={Table2} label="Excel" disabled={!selected.length || exporting} onClick={() => exportSelected('excel')} />{single && !isNote && single.estado !== 'Anulado' && (single.esFacturada ? <Action icon={Eye} label="Ver factura" onClick={() => viewInvoice(single)} primary /> : <Action icon={FilePlus2} label="Generar factura" onClick={() => navigate(`/ventas/facturas/crear?recibo=${encodeURIComponent(single.numeroRecibo)}`)} primary />)}{single && single.estado !== 'Anulado' && !single.esFacturada && <Action icon={Trash2} label="Anular" danger onClick={() => { setCancelTarget(single); setCancelReason(''); }} />}</div>
+                <div className="flex flex-wrap justify-end gap-2"><Action icon={Printer} label="Imprimir PDF" disabled={!selected.length || exporting} onClick={() => exportSelected('pdf')} /><Action icon={FileText} label="Word" disabled={!selected.length || exporting || isPayment} onClick={() => exportSelected('docx')} /><Action icon={Table2} label="Excel" disabled={!selected.length || exporting || isPayment} onClick={() => exportSelected('excel')} />{single && !isNote && single.estado !== 'Anulado' && (single.esFacturada ? <Action icon={Eye} label="Ver factura" onClick={() => viewInvoice(single)} primary /> : isPayment ? <Action icon={FilePlus2} label="Generar factura" onClick={() => { setInvoiceTarget(single); setInvoiceForm({ nombre: single.clienteNombre, nit: single.clienteNit || 'CF', direccion: '' }); }} primary /> : <Action icon={FilePlus2} label="Generar factura" onClick={() => navigate(`/ventas/facturas/crear?recibo=${encodeURIComponent(single.numeroRecibo)}`)} primary />)}{single && !isPayment && single.estado !== 'Anulado' && !single.esFacturada && <Action icon={Trash2} label="Anular" danger onClick={() => { setCancelTarget(single); setCancelReason(''); }} />}</div>
             </footer>
         </section>
         <NotificationToast notification={notification} onClose={() => setNotification(null)} />
         <ConfirmCancelModal receipt={cancelTarget} reason={cancelReason} onReasonChange={setCancelReason} onCancel={() => setCancelTarget(null)} onConfirm={cancelReceipt} loading={cancelling} />
+        {invoiceTarget && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4"><section className="w-full max-w-lg space-y-4 border bg-white p-6 shadow-xl"><div className="flex justify-between"><div><h2 className="text-lg font-bold">Facturar recibo de abono</h2><p className="text-sm text-slate-500">{invoiceTarget.numeroRecibo} · {money.format(invoiceTarget.monto)}</p></div><button onClick={() => setInvoiceTarget(null)}><X className="h-5 w-5" /></button></div><label className="text-sm font-semibold">Nombre receptor *<input className="input mt-1" value={invoiceForm.nombre} onChange={e => setInvoiceForm({ ...invoiceForm, nombre: e.target.value })} /></label><label className="text-sm font-semibold">NIT<input className="input mt-1" value={invoiceForm.nit} onChange={e => setInvoiceForm({ ...invoiceForm, nit: e.target.value })} /></label><label className="text-sm font-semibold">Dirección<input className="input mt-1" value={invoiceForm.direccion} onChange={e => setInvoiceForm({ ...invoiceForm, direccion: e.target.value })} /></label><div className="flex justify-end gap-2"><button className="button-secondary" onClick={() => setInvoiceTarget(null)}>Cancelar</button><button className="button-primary" onClick={invoicePayment}>Autorizar e imprimir</button></div></section></div>}
     </div>;
 }
 

@@ -1,16 +1,67 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import axiosClient from '../api/axiosClient';
-import { useAuth } from '../context/AuthContext';
-import NotificationToast from '../components/NotificationToast';
-const money = new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' });
-const inputDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axiosClient from "../api/axiosClient";
+import { useAuth } from "../context/AuthContext";
+import NotificationToast from "../components/NotificationToast";
+import { ArrowRight, Banknote, Boxes, CircleDollarSign, PackagePlus, ReceiptText, ShoppingCart, TrendingUp, TriangleAlert, Users } from "lucide-react";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+
+const money = new Intl.NumberFormat("es-GT", { style: "currency", currency: "GTQ" });
+const inputDate = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+const compact = (value) => new Intl.NumberFormat("es-GT", { notation: "compact", maximumFractionDigits: 1 }).format(value);
+
 export default function DashboardPage() {
-    const { selectedSucursalId, sucursales } = useAuth(); const [receipts, setReceipts] = useState([]); const [todayReceipts, setTodayReceipts] = useState([]); const [inventory, setInventory] = useState([]); const [notification, setNotification] = useState(null);
-    const branch = sucursales.find(item => String(item.idSucursal) === String(selectedSucursalId));
-    const load = useCallback(async () => { if (!selectedSucursalId) return; const today = new Date(); const monthStart = inputDate(new Date(today.getFullYear(), today.getMonth(), 1)); const date = inputDate(today); try { const [monthResponse, todayResponse, inventoryResponse] = await Promise.all([axiosClient.get('/ventas/recibos', { params: { idSucursal: selectedSucursalId, fechaDesde: monthStart, fechaHasta: date } }), axiosClient.get('/ventas/recibos', { params: { idSucursal: selectedSucursalId, fechaDesde: date, fechaHasta: date } }), axiosClient.get('/inventario/productos', { params: { idSucursal: selectedSucursalId } })]); setReceipts(monthResponse.data.data || []); setTodayReceipts(todayResponse.data.data || []); setInventory(inventoryResponse.data.data || []); } catch (error) { setNotification({ type: 'error', message: error.response?.data?.message || 'No fue posible cargar el resumen.' }); } }, [selectedSucursalId]);
-    useEffect(() => { load(); }, [load]);
-    const validMonth = receipts.filter(row => row.estado !== 'Anulado'); const validToday = todayReceipts.filter(row => row.estado !== 'Anulado');
-    const metrics = useMemo(() => ({ today: validToday.reduce((sum, row) => sum + row.monto, 0), month: validMonth.reduce((sum, row) => sum + row.monto, 0), count: validMonth.length, average: validMonth.length ? validMonth.reduce((sum, row) => sum + row.monto, 0) / validMonth.length : 0, units: inventory.reduce((sum, row) => sum + row.stock, 0), low: inventory.filter(row => row.stock <= 5).length }), [validMonth, validToday, inventory]);
-    return <div className="space-y-5"><NotificationToast notification={notification} onClose={() => setNotification(null)} /><header className="page-title p-5"><h1 className="text-2xl font-bold">Inicio · {branch?.nombreSuc || branch?.nombre}</h1></header><section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><Metric label="Ventas de hoy" value={money.format(metrics.today)} /><Metric label="Ventas del mes" value={money.format(metrics.month)} /><Metric label="Recibos del mes" value={metrics.count} /><Metric label="Venta promedio" value={money.format(metrics.average)} /><Metric label="Unidades disponibles" value={metrics.units} /><Metric label="Productos con existencia baja" value={metrics.low} /></section><section className="overflow-x-auto border bg-white"><div className="flex items-center justify-between border-b p-4"><h2 className="font-bold">Ventas recientes</h2><button onClick={load} className="rounded-md border px-3 py-1.5 text-sm">Actualizar</button></div><table className="w-full min-w-[760px] text-sm"><thead className="bg-slate-100 text-left"><tr><th className="p-4">Recibo</th><th>Fecha</th><th>Cliente</th><th>Vendedor</th><th>Pago</th><th className="p-4 text-right">Monto</th></tr></thead><tbody className="divide-y">{receipts.slice(0, 12).map(row => <tr key={row.idRecibo}><td className="p-4 font-semibold">{row.numeroRecibo}</td><td>{new Date(row.fechaPago).toLocaleString('es-GT')}</td><td>{row.clienteNombre}</td><td>{row.vendedorNombre}</td><td className="capitalize">{row.metodoPago}</td><td className={`p-4 text-right font-bold ${row.estado === 'Anulado' ? 'text-red-500 line-through' : ''}`}>{money.format(row.monto)}</td></tr>)}</tbody></table>{!receipts.length && <p className="p-8 text-center text-sm text-slate-500">No hay ventas registradas este mes.</p>}</section></div>;
+  const navigate = useNavigate();
+  const { selectedSucursalId, sucursales, user } = useAuth();
+  const [receipts, setReceipts] = useState([]);
+  const [todayReceipts, setTodayReceipts] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [notification, setNotification] = useState(null);
+  const branch = sucursales.find((item) => String(item.idSucursal) === String(selectedSucursalId));
+  const branchColor = branch?.colorIdentificacion || "#008BA8";
+  const chartColors = [branchColor, "#f59e0b", "#22c55e", "#8b5cf6", "#ef4444", "#64748b"];
+  const displayName = user?.nombre || user?.unique_name || user?.name || "equipo";
+  const load = useCallback(async () => {
+    if (!selectedSucursalId) return;
+    const current = new Date(); const date = inputDate(current); const monthStart = inputDate(new Date(current.getFullYear(), current.getMonth(), 1));
+    try {
+      const [monthResponse, todayResponse, inventoryResponse] = await Promise.all([
+        axiosClient.get("/ventas/recibos", { params: { idSucursal: selectedSucursalId, fechaDesde: monthStart, fechaHasta: date } }),
+        axiosClient.get("/ventas/recibos", { params: { idSucursal: selectedSucursalId, fechaDesde: date, fechaHasta: date } }),
+        axiosClient.get("/inventario/productos", { params: { idSucursal: selectedSucursalId } }),
+      ]);
+      setReceipts(monthResponse.data.data || []); setTodayReceipts(todayResponse.data.data || []); setInventory(inventoryResponse.data.data || []);
+    } catch (error) { setNotification({ type: "error", message: error.response?.data?.message || "No fue posible cargar el resumen." }); }
+  }, [selectedSucursalId]);
+  useEffect(() => { load(); }, [load]);
+  const validMonth = receipts.filter((row) => row.estado !== "Anulado");
+  const validToday = todayReceipts.filter((row) => row.estado !== "Anulado");
+  const metrics = useMemo(() => ({
+    today: validToday.reduce((sum, row) => sum + row.monto, 0), month: validMonth.reduce((sum, row) => sum + row.monto, 0),
+    average: validMonth.length ? validMonth.reduce((sum, row) => sum + row.monto, 0) / validMonth.length : 0,
+    units: inventory.reduce((sum, row) => sum + row.stock, 0), low: inventory.filter((row) => row.stock <= 5).length,
+  }), [validMonth, validToday, inventory]);
+  const daily = Object.values(validMonth.reduce((map, row) => { const key = new Date(row.fechaPago).toLocaleDateString("es-GT", { day: "2-digit", month: "short" }); map[key] ||= { label: key, value: 0 }; map[key].value += row.monto; return map; }, {})).slice(-12);
+  const methods = Object.values(validMonth.reduce((map, row) => { const key = row.metodoPago || "Sin definir"; map[key] ||= { label: key, value: 0 }; map[key].value += row.monto; return map; }, {})).sort((a, b) => b.value - a.value);
+  const sellers = Object.values(validMonth.reduce((map, row) => { const key = row.vendedorNombre || "Sin vendedor"; map[key] ||= { label: key, value: 0 }; map[key].value += row.monto; return map; }, {})).sort((a, b) => b.value - a.value).slice(0, 5);
+  const shortcuts = [[ShoppingCart, "Nueva venta", "/ventas"], [ReceiptText, "Buscar recibos", "/ventas/recibos"], [Banknote, "Registrar abono", "/cobros/pagar"], [PackagePlus, "Entrada de pedido", "/inventarios/entrada-pedido"], [Users, "Clientes", "/clientes/listado"], [Boxes, "Inventario", "/inventarios/productos"]];
+  return <div className="space-y-6">
+    <NotificationToast notification={notification} onClose={() => setNotification(null)} />
+    <header className="dashboard-welcome"><div><p className="dashboard-eyebrow">{branch?.nombreSuc || "Resumen"}</p><h1>{displayName}</h1><p>Este es el movimiento de tu negocio al día de hoy.</p></div><button onClick={load} className="button-secondary">Actualizar datos</button></header>
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <Metric icon={CircleDollarSign} label="Ventas de hoy" value={money.format(metrics.today)} note={`${validToday.length} pagos recibidos`} tone="teal" />
+      <Metric icon={TrendingUp} label="Ventas del mes" value={money.format(metrics.month)} note={`Promedio ${money.format(metrics.average)}`} tone="blue" />
+      <Metric icon={Boxes} label="Unidades disponibles" value={metrics.units} note={`${inventory.length} productos registrados`} tone="violet" />
+      <Metric icon={TriangleAlert} label="Existencia baja" value={metrics.low} note="Productos con 5 unidades o menos" tone={metrics.low ? "amber" : "green"} />
+    </section>
+    <section className="panel-card p-5"><div className="section-heading"><div><h2>Accesos rápidos</h2><p>Las tareas que más utilizas, a un clic.</p></div></div><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">{shortcuts.map(([Icon, label, path]) => <button key={path} onClick={() => navigate(path)} className="quick-action"><Icon className="h-5 w-5" /><span>{label}</span><ArrowRight className="ml-auto h-4 w-4" /></button>)}</div></section>
+    <section className="grid gap-5 xl:grid-cols-[1.35fr_.65fr]">
+      <ChartCard title="Comportamiento de ventas" subtitle="Últimos movimientos del mes"><ResponsiveContainer width="100%" height={300}><AreaChart data={daily}><CartesianGrid stroke="#e7edf3" vertical={false} /><XAxis dataKey="label" axisLine={false} tickLine={false} /><YAxis tickFormatter={compact} axisLine={false} tickLine={false} /><Tooltip formatter={(value) => money.format(value)} /><Area type="monotone" dataKey="value" name="Ventas" stroke={branchColor} strokeWidth={3} fill={branchColor} fillOpacity={0.16} activeDot={{ r: 6, fill: branchColor }} /></AreaChart></ResponsiveContainer></ChartCard>
+      <ChartCard title="Formas de pago" subtitle="Distribución del mes"><ResponsiveContainer width="100%" height={300}><PieChart><Pie data={methods} dataKey="value" nameKey="label" innerRadius={68} outerRadius={100} paddingAngle={3}>{methods.map((row, index) => <Cell key={row.label} fill={chartColors[index % chartColors.length]} />)}</Pie><Tooltip formatter={(value) => money.format(value)} /><Legend /></PieChart></ResponsiveContainer></ChartCard>
+      <ChartCard title="Vendedores destacados" subtitle="Comparativa por monto vendido"><ResponsiveContainer width="100%" height={280}><BarChart data={sellers} layout="vertical" margin={{ left: 16 }}><CartesianGrid stroke="#e7edf3" horizontal={false} /><XAxis type="number" tickFormatter={compact} axisLine={false} tickLine={false} /><YAxis type="category" dataKey="label" width={105} axisLine={false} tickLine={false} /><Tooltip formatter={(value) => money.format(value)} /><Bar dataKey="value" name="Ventas" fill={branchColor} radius={[0, 5, 5, 0]} /></BarChart></ResponsiveContainer></ChartCard>
+      <section className="panel-card overflow-hidden"><div className="section-heading p-5"><div><h2>Pagos de hoy</h2><p>{validToday.length} movimientos registrados.</p></div><button onClick={() => navigate("/ventas/recibos")} className="text-link">Ver todos</button></div><div className="divide-y">{validToday.slice(0, 6).map((row) => <div key={row.idRecibo} className="flex items-center justify-between gap-3 px-5 py-3"><div><b className="text-sm">{row.clienteNombre}</b><p className="text-xs capitalize text-slate-500">{row.numeroRecibo} · {row.metodoPago}</p></div><b className="text-sm text-emerald-700">{money.format(row.monto)}</b></div>)}{!validToday.length && <p className="p-8 text-center text-sm text-slate-500">Todavía no hay pagos registrados hoy.</p>}</div></section>
+    </section>
+  </div>;
 }
-function Metric({ label, value }) { return <div className="border bg-white p-5"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold">{value}</p></div>; }
+function Metric({ icon: Icon, label, value, note, tone }) { return <article className={`metric-card metric-${tone}`}><div className="metric-icon"><Icon className="h-5 w-5" /></div><div><p>{label}</p><strong>{value}</strong><small>{note}</small></div></article>; }
+function ChartCard({ title, subtitle, children }) { return <section className="panel-card p-5"><div className="section-heading"><div><h2>{title}</h2><p>{subtitle}</p></div></div>{children}</section>; }

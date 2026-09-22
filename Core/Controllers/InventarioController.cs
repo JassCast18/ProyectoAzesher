@@ -110,6 +110,22 @@ public class InventarioController(IInventarioProviderDTO inventarioProvider) : C
         return File(TrasladoDocumentService.GeneratePdf(rows),"application/pdf",$"{rows[0].NumeroTraslado}.pdf");
     }
 
+    [HttpPost("salidas")]
+    public async Task<IActionResult> RegistrarSalida([FromBody]SalidaInventarioRequestDTO salida){var branch=ResolveBranch(salida.IdSucursal);if(!branch.HasValue)return BranchRequired();salida.IdSucursal=branch.Value;if(salida.Detalles.Count==0)return BadRequest(new ApiResponse<object>{Success=false,Message="Agrega al menos un producto."});var user=int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier),out var id)?id:0;try{var result=await inventarioProvider.RegistrarSalidaAsync(salida,user);return Ok(new ApiResponse<object>{Success=true,Message="Salida registrada e inventario actualizado.",Data=new{IdSalida=result}});}catch(Exception ex){return BadRequest(new ApiResponse<object>{Success=false,Message=ex.Message});}}
+
+    [HttpGet("salidas")]
+    public async Task<IActionResult> Salidas([FromQuery]int? idSucursal,[FromQuery]string? query=null){var branch=ResolveBranch(idSucursal);if(!branch.HasValue)return BranchRequired();return Ok(new ApiResponse<object>{Success=true,Message="Salidas obtenidas.",Data=await inventarioProvider.BuscarSalidasAsync(branch.Value,query??"")});}
+
+    [HttpGet("movimientos")]
+    public async Task<IActionResult> Movimientos([FromQuery]int? idSucursal=null,[FromQuery]int? idProducto=null,[FromQuery]string? query=null,[FromQuery]string? tipo=null,[FromQuery]DateTime? fechaDesde=null,[FromQuery]DateTime? fechaHasta=null,[FromQuery]int pagina=1,[FromQuery]int tamanoPagina=25)
+    {
+        var assignedBranch = ResolveBranch(idSucursal);
+        var isAdmin = User.IsInRole("Administrador") || User.IsInRole("administrador") || User.IsInRole("Admin") || User.IsInRole("admin") || User.IsInRole("Demo") || User.IsInRole("demo") || User.IsInRole("Superusuario") || User.IsInRole("superusuario");
+        if (!isAdmin && !assignedBranch.HasValue) return BranchRequired();
+        var rows = await inventarioProvider.BuscarMovimientosAsync(assignedBranch,idProducto,query??"",tipo??"",fechaDesde,fechaHasta,Math.Max(1,pagina),Math.Clamp(tamanoPagina,1,100));
+        return Ok(new ApiResponse<object>{Success=true,Message="Movimientos de inventario obtenidos.",Data=new{Registros=rows,Total=rows.FirstOrDefault()?.TotalRegistros??0,Pagina=Math.Max(1,pagina),TamanoPagina=Math.Clamp(tamanoPagina,1,100)}});
+    }
+
     private int? ResolveBranch(int? requestedBranch)
     {
         var claim = User.FindFirst("id_sucursal")?.Value ?? User.FindFirstValue("IdSucursal");

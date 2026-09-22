@@ -3,6 +3,8 @@ using Core.Provider;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Core.Services;
+using Core.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
@@ -17,8 +19,11 @@ builder.Services.AddScoped<IVentaProviderDTO, VentaProvider>();
 builder.Services.AddScoped<IInventarioProviderDTO, InventarioProvider>();
 builder.Services.AddScoped<IFacturacionProviderDTO, FacturacionProvider>();
 builder.Services.AddScoped<IOperacionProviderDTO, OperacionProvider>();
+builder.Services.AddScoped<ITrabajadorProviderDTO, TrabajadorProvider>();
+builder.Services.AddScoped<IPasswordResetEmailService, PasswordResetEmailService>();
 builder.Services.AddScoped<IDatosMaestrosProviderDTO, DatosMaestrosProvider>();
 builder.Services.AddScoped<ICobroProviderDTO, CobroProvider>();
+builder.Services.AddScoped<IBitacoraProviderDTO, BitacoraProvider>();
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var jwtSecret = jwtSettings["Secret"]
@@ -65,6 +70,7 @@ app.UseHttpsRedirection();
 app.UseCors("AllowReactApp");
 
 app.UseAuthentication();
+app.UseMiddleware<BitacoraMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();

@@ -16,26 +16,48 @@ BEGIN
         ) recibo
         WHERE COALESCE(sc.id_sucursal, recibo.id_sucursal) = @IdSucursal
     )
-    SELECT c.id_cliente IdCliente, c.nombre Nombre, c.nit Nit, c.telefono Telefono, c.direccion Direccion,
-           COUNT(v.id_venta) Compras, ISNULL(SUM(v.total), 0) TotalComprado
+    SELECT c.id_cliente IdCliente, c.nombre Nombre, c.nit Nit, c.telefono Telefono, c.correo Correo, c.direccion Direccion,c.fecha_nacimiento FechaNacimiento,
+           CASE WHEN c.fecha_nacimiento IS NULL THEN NULL ELSE DATEDIFF(YEAR,c.fecha_nacimiento,CAST(GETDATE() AS DATE))-CASE WHEN DATEADD(YEAR,DATEDIFF(YEAR,c.fecha_nacimiento,CAST(GETDATE() AS DATE)),c.fecha_nacimiento)>CAST(GETDATE() AS DATE) THEN 1 ELSE 0 END END Edad,
+           COUNT(v.id_venta) Compras, ISNULL(SUM(v.total), 0) TotalComprado,
+           CAST(CASE WHEN cc.id_cliente_credito IS NULL THEN 0 ELSE 1 END AS BIT) TieneEstadoCrediticio,
+           cc.estado_autorizacion EstadoCredito
     FROM dbo.cliente c
     LEFT JOIN VentasSucursal v ON v.id_cliente = c.id_cliente
+    LEFT JOIN dbo.cliente_credito cc ON cc.id_cliente=c.id_cliente
     WHERE ISNULL(@Query,'')='' OR c.nombre LIKE '%'+@Query+'%' OR ISNULL(c.nit,'') LIKE '%'+@Query+'%' OR ISNULL(c.telefono,'') LIKE '%'+@Query+'%'
-    GROUP BY c.id_cliente,c.nombre,c.nit,c.telefono,c.direccion
+    GROUP BY c.id_cliente,c.nombre,c.nit,c.telefono,c.correo,c.direccion,c.fecha_nacimiento,cc.id_cliente_credito,cc.estado_autorizacion
     ORDER BY c.nombre;
 END
 GO
 
 CREATE OR ALTER PROCEDURE dbo.sp_crear_cliente_core
-    @Nombre VARCHAR(150), @Nit VARCHAR(20)=NULL, @Telefono VARCHAR(20)=NULL, @Direccion VARCHAR(MAX)=NULL
+    @Nombre VARCHAR(150), @Nit VARCHAR(20)=NULL, @Telefono VARCHAR(20)=NULL, @Correo VARCHAR(150)=NULL, @Direccion VARCHAR(MAX)=NULL,@FechaNacimiento DATE=NULL
 AS
 BEGIN
     SET NOCOUNT ON;
     IF NULLIF(LTRIM(RTRIM(@Nit)),'') IS NOT NULL AND EXISTS(SELECT 1 FROM dbo.cliente WHERE nit=@Nit)
         THROW 50301,'Ya existe un cliente con ese NIT.',1;
-    INSERT dbo.cliente(nombre,nit,telefono,direccion)
-    VALUES(LTRIM(RTRIM(@Nombre)),NULLIF(LTRIM(RTRIM(@Nit)),''),NULLIF(LTRIM(RTRIM(@Telefono)),''),NULLIF(LTRIM(RTRIM(@Direccion)),''));
+    IF @FechaNacimiento>CAST(GETDATE() AS DATE) THROW 50303,'La fecha de nacimiento no puede ser futura.',1;
+    INSERT dbo.cliente(nombre,nit,telefono,correo,direccion,fecha_nacimiento)
+    VALUES(LTRIM(RTRIM(@Nombre)),NULLIF(LTRIM(RTRIM(@Nit)),''),NULLIF(LTRIM(RTRIM(@Telefono)),''),NULLIF(LTRIM(RTRIM(@Correo)),''),NULLIF(LTRIM(RTRIM(@Direccion)),''),@FechaNacimiento);
     SELECT CAST(SCOPE_IDENTITY() AS INT) IdCliente;
+END
+GO
+
+CREATE OR ALTER PROCEDURE dbo.sp_actualizar_cliente_core
+    @IdCliente INT, @Nombre VARCHAR(150), @Nit VARCHAR(20)=NULL, @Telefono VARCHAR(20)=NULL, @Correo VARCHAR(150)=NULL, @Direccion VARCHAR(MAX)=NULL,@FechaNacimiento DATE=NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF NOT EXISTS(SELECT 1 FROM dbo.cliente WHERE id_cliente=@IdCliente)
+        THROW 50302,'El cliente no existe.',1;
+    IF NULLIF(LTRIM(RTRIM(@Nit)),'') IS NOT NULL AND EXISTS(SELECT 1 FROM dbo.cliente WHERE nit=@Nit AND id_cliente<>@IdCliente)
+        THROW 50301,'Ya existe otro cliente con ese NIT.',1;
+    IF @FechaNacimiento>CAST(GETDATE() AS DATE) THROW 50303,'La fecha de nacimiento no puede ser futura.',1;
+    UPDATE dbo.cliente
+       SET nombre=LTRIM(RTRIM(@Nombre)),nit=NULLIF(LTRIM(RTRIM(@Nit)),''),telefono=NULLIF(LTRIM(RTRIM(@Telefono)),''),
+           correo=NULLIF(LTRIM(RTRIM(@Correo)),''),direccion=NULLIF(LTRIM(RTRIM(@Direccion)),''),fecha_nacimiento=@FechaNacimiento
+     WHERE id_cliente=@IdCliente;
 END
 GO
 
@@ -70,4 +92,8 @@ GO
 IF OBJECT_ID('dbo.sp_historial_cliente','SN') IS NOT NULL DROP SYNONYM dbo.sp_historial_cliente;
 GO
 CREATE SYNONYM dbo.sp_historial_cliente FOR dbo.sp_historial_cliente_core;
+GO
+IF OBJECT_ID('dbo.sp_actualizar_cliente','SN') IS NOT NULL DROP SYNONYM dbo.sp_actualizar_cliente;
+GO
+CREATE SYNONYM dbo.sp_actualizar_cliente FOR dbo.sp_actualizar_cliente_core;
 GO

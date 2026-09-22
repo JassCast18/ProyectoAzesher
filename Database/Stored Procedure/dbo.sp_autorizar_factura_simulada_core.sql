@@ -1,3 +1,7 @@
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 CREATE OR ALTER PROCEDURE dbo.sp_autorizar_factura_simulada_core @IdRecibo INT,@IdSucursal INT,@Nombre VARCHAR(150),@Nit VARCHAR(20),@Direccion VARCHAR(300)=NULL AS
 BEGIN SET NOCOUNT ON; DECLARE @IdFactura INT,@Metodo VARCHAR(50),@EstadoRecibo VARCHAR(30);
  SELECT @IdFactura=r.id_factura,@Metodo=r.metodo_pago,@EstadoRecibo=r.estado FROM dbo.recibo r WHERE r.id_recibo=@IdRecibo AND r.id_sucursal=@IdSucursal;

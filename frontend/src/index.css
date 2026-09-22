@@ -7,6 +7,17 @@
   .button-secondary { @apply inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50; }
 }
 
+.button-primary,
+.bg-brand-teal { background-color: var(--branch-color, #008ba8) !important; }
+.text-brand-teal { color: var(--branch-color, #008ba8) !important; }
+.border-brand-teal { border-color: var(--branch-color, #008ba8) !important; }
+[class~="bg-teal-50"] { background-color: color-mix(in srgb, var(--branch-color, #008ba8) 8%, white) !important; }
+.hover\:bg-teal-50:hover { background-color: color-mix(in srgb, var(--branch-color, #008ba8) 7%, white) !important; }
+.input:focus {
+  border-color: var(--branch-color, #008ba8) !important;
+  --tw-ring-color: color-mix(in srgb, var(--branch-color, #008ba8) 18%, transparent) !important;
+}
+
 @layer components {
   .input {
     @apply h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm font-normal text-slate-800 outline-none transition focus:border-brand-teal focus:ring-2 focus:ring-teal-100;
@@ -14,7 +25,11 @@
 }
 
 body {
-  background-color: #f3f4f6; /* Fondo gris muy claro para toda la app */
+  margin: 0;
+  background-color: #f5f7fa;
+  color: #172033;
+  font-family: "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
+  font-feature-settings: "ss01" 1, "cv11" 1;
 }
 
 .branch-context {
@@ -24,7 +39,40 @@ body {
 
 .page-title,
 .branch-context > div > header {
-  background: color-mix(in srgb, var(--branch-color, #008ba8) 18%, white);
-  border: 1px solid color-mix(in srgb, var(--branch-color, #008ba8) 42%, white);
-  border-left: 6px solid var(--branch-color, #008ba8);
+  background: white;
+  border: 0;
+  border-bottom: 2px solid color-mix(in srgb, var(--branch-color, #008ba8) 58%, white);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
 }
+
+.page-title h1 { letter-spacing: -0.035em; color: #172033; }
+.panel-card { border: 1px solid #e2e8f0; background: white; box-shadow: 0 8px 24px rgb(15 23 42 / 0.045); }
+.section-heading { display: flex; align-items: start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+.section-heading h2 { font-size: 1rem; font-weight: 750; letter-spacing: -0.02em; color: #172033; }
+.section-heading p { margin-top: .2rem; font-size: .78rem; color: #64748b; }
+.dashboard-welcome { display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 2px solid var(--branch-color, #008ba8); background: white; padding: 1.4rem 1.5rem; }
+.dashboard-welcome h1 { margin-top: .2rem; font-size: clamp(1.55rem, 3vw, 2rem); font-weight: 760; letter-spacing: -.045em; }
+.dashboard-eyebrow { color: var(--branch-color, #008ba8); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.dashboard-welcome > div > p:last-child { margin-top: .3rem; color: #64748b; font-size: .9rem; }
+.eyebrow { color: var(--branch-color, #008ba8); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.metric-card { display: flex; min-height: 132px; align-items: flex-start; gap: 1rem; border: 1px solid #e2e8f0; background: white; padding: 1.2rem; box-shadow: 0 6px 18px rgb(15 23 42 / .04); }
+.metric-icon { display: grid; height: 2.5rem; width: 2.5rem; flex: none; place-items: center; border-radius: .65rem; }
+.metric-card p { font-size: .8rem; font-weight: 650; color: #64748b; }
+.metric-card strong { display: block; margin-top: .3rem; font-size: 1.45rem; letter-spacing: -.04em; }
+.metric-card small { display: block; margin-top: .35rem; color: #64748b; }
+.metric-teal .metric-icon { background: #dff6f8; color: #007f96; }.metric-blue .metric-icon { background: #e7f0ff; color: #2563eb; }.metric-violet .metric-icon { background: #f0eaff; color: #7c3aed; }.metric-amber .metric-icon { background: #fff3d6; color: #d97706; }.metric-green .metric-icon { background: #e6f8ee; color: #15803d; }
+.quick-action { display: flex; align-items: center; gap: .65rem; border: 1px solid #e2e8f0; background: #f8fafc; padding: .8rem; color: #334155; font-size: .8rem; font-weight: 700; text-align: left; transition: .15s ease; }
+.quick-action:hover { border-color: var(--branch-color, #008ba8); background: white; color: var(--branch-color, #008ba8); transform: translateY(-1px); }
+.text-link { color: var(--branch-color, #008ba8); font-size: .8rem; font-weight: 750; }
+.app-sidebar { background: white !important; border-color: #e2e8f0 !important; }
+.app-sidebar > div:first-child { background: white; border-color: #e2e8f0; }
+.app-sidebar nav > a,
+.app-sidebar nav > button { border-left: 3px solid transparent; color: #475569 !important; }
+.app-sidebar nav > a:hover,
+.app-sidebar nav > button:hover { background: color-mix(in srgb, var(--branch-color, #008ba8) 6%, white) !important; color: var(--branch-color, #008ba8) !important; }
+.app-sidebar nav .bg-brand-teal { background: color-mix(in srgb, var(--branch-color, #008ba8) 10%, white) !important; border-left-color: var(--branch-color, #008ba8); color: var(--branch-color, #008ba8) !important; }
+.app-sidebar nav > div { border-color: #e2e8f0 !important; }
+.app-sidebar nav > div a { border-left: 3px solid transparent; color: #64748b !important; }
+.app-sidebar nav > div a:hover { background: color-mix(in srgb, var(--branch-color, #008ba8) 6%, white) !important; color: var(--branch-color, #008ba8) !important; }
+.app-sidebar nav > div a.bg-teal-50 { background: color-mix(in srgb, var(--branch-color, #008ba8) 10%, white) !important; border-left-color: var(--branch-color, #008ba8); color: var(--branch-color, #008ba8) !important; }
+@media (max-width: 640px) { .dashboard-welcome { align-items: flex-start; flex-direction: column; } }

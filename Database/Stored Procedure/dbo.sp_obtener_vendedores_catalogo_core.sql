@@ -17,7 +17,7 @@ BEGIN
         s.nombre AS SucursalNombre
     FROM dbo.vendedor v
     INNER JOIN dbo.sucursal s ON s.id_sucursal = v.id_sucursal
-    WHERE v.id_sucursal = @IdSucursal
+    WHERE v.id_sucursal = @IdSucursal AND ISNULL(v.activo,1)=1
     ORDER BY v.nombre;
 END
 GO

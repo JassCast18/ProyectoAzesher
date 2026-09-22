@@ -13,4 +13,7 @@ public interface IInventarioProviderDTO
     Task<List<ProductoEntradaDTO>> ObtenerProductosProveedorAsync(int idProveedor);
     Task<TrasladoCreadoDTO> RegistrarTrasladoAsync(RegistrarTrasladoDTO traslado, int idUsuario);
     Task<List<TrasladoConsultaDTO>> BuscarTrasladosAsync(int? idSucursal, string query, DateTime? fechaDesde, DateTime? fechaHasta, int? idTraslado = null);
+    Task<int> RegistrarSalidaAsync(SalidaInventarioRequestDTO salida,int idUsuario);
+    Task<List<SalidaInventarioConsultaDTO>> BuscarSalidasAsync(int idSucursal,string query);
+    Task<List<MovimientoInventarioDTO>> BuscarMovimientosAsync(int? idSucursal,int? idProducto,string query,string tipo,DateTime? fechaDesde,DateTime? fechaHasta,int pagina,int tamanoPagina);
 }

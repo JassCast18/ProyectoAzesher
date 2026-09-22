@@ -13,6 +13,10 @@ axiosClient.interceptors.request.use(
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
+        const selectedBranch = localStorage.getItem('selectedSucursalId');
+        if (selectedBranch) {
+            config.headers['X-Sucursal-ID'] = selectedBranch;
+        }
         return config;
     },
     (error) => Promise.reject(error)
