@@ -5,8 +5,12 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Core.Services;
 using Core.Middleware;
+using Core.Configuration;
+using Core.Integrations.Digifact;
 
 var builder = WebApplication.CreateBuilder(args);
+EnvFileLoader.Load(Path.Combine(builder.Environment.ContentRootPath, ".env"));
+builder.Configuration.AddEnvironmentVariables();
 Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
 // Add services to the container.
 
@@ -24,6 +28,14 @@ builder.Services.AddScoped<IPasswordResetEmailService, PasswordResetEmailService
 builder.Services.AddScoped<IDatosMaestrosProviderDTO, DatosMaestrosProvider>();
 builder.Services.AddScoped<ICobroProviderDTO, CobroProvider>();
 builder.Services.AddScoped<IBitacoraProviderDTO, BitacoraProvider>();
+builder.Services.Configure<DigifactOptions>(builder.Configuration.GetSection(DigifactOptions.SectionName));
+builder.Services.AddSingleton<IDigifactNucFactory, DigifactNucFactory>();
+builder.Services.AddHttpClient<IDigifactClient, DigifactClient>((services, client) =>
+{
+    var options = services.GetRequiredService<Microsoft.Extensions.Options.IOptions<DigifactOptions>>().Value;
+    client.BaseAddress = new Uri(options.BaseUrl.EndsWith('/') ? options.BaseUrl : options.BaseUrl + "/");
+    client.Timeout = TimeSpan.FromSeconds(120);
+});
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var jwtSecret = jwtSettings["Secret"]

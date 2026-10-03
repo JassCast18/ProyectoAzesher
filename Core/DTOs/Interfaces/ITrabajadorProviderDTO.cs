@@ -10,4 +10,7 @@ public interface ITrabajadorProviderDTO
  Task<List<KpiTrabajadorDTO>> Kpis(int? sucursal,DateTime desde,DateTime hasta);
  Task<List<VentaTrabajadorDTO>> Ventas(int sucursal,int? vendedor,DateTime desde,DateTime hasta);
  Task<List<HistorialTrabajadorDTO>> Historial(int? sucursal,int? vendedor,string query,string tipo,DateTime? desde,DateTime? hasta,int pagina,int tamanoPagina);
+ Task<List<PlanillaTrabajadorDTO>> Planilla(int? sucursal,DateTime desde,DateTime hasta);
+ Task<ConfiguracionPagoTrabajadorDTO?> ConfiguracionPago(int vendedor);
+ Task GuardarConfiguracionPago(GuardarConfiguracionPagoDTO configuracion,int usuario);
 }

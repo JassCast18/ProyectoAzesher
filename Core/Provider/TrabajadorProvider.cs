@@ -19,4 +19,18 @@ public class TrabajadorProvider(IConfiguration configuration):ITrabajadorProvide
  public Task<List<KpiTrabajadorDTO>> Kpis(int? sucursal,DateTime desde,DateTime hasta)=>List<KpiTrabajadorDTO>("dbo.sp_kpis_trabajadores",new{IdSucursal=sucursal,FechaDesde=desde,FechaHasta=hasta});
  public Task<List<VentaTrabajadorDTO>> Ventas(int sucursal,int? vendedor,DateTime desde,DateTime hasta)=>List<VentaTrabajadorDTO>("dbo.sp_ventas_trabajador",new{IdSucursal=sucursal,IdVendedor=vendedor,FechaDesde=desde,FechaHasta=hasta});
  public Task<List<HistorialTrabajadorDTO>> Historial(int? sucursal,int? vendedor,string query,string tipo,DateTime? desde,DateTime? hasta,int pagina,int tamanoPagina)=>List<HistorialTrabajadorDTO>("dbo.sp_historial_trabajadores",new{IdSucursal=sucursal,IdVendedor=vendedor,Query=query,Tipo=tipo,FechaDesde=desde,FechaHasta=hasta,Pagina=pagina,TamanoPagina=tamanoPagina});
+ public Task<List<PlanillaTrabajadorDTO>> Planilla(int? sucursal,DateTime desde,DateTime hasta)=>List<PlanillaTrabajadorDTO>("dbo.sp_calcular_planilla",new{IdSucursal=sucursal,FechaDesde=desde,FechaHasta=hasta});
+ public async Task<ConfiguracionPagoTrabajadorDTO?> ConfiguracionPago(int vendedor)
+ {
+  await using var db=new SqlConnection(cs);
+  using var result=await db.QueryMultipleAsync("dbo.sp_obtener_configuracion_pago_trabajador",new{IdVendedor=vendedor},commandType:CommandType.StoredProcedure);
+  var configuration=await result.ReadFirstOrDefaultAsync<ConfiguracionPagoTrabajadorDTO>();
+  if(configuration is not null) configuration.Bonos=(await result.ReadAsync<BonoTrabajadorDTO>()).ToList();
+  return configuration;
+ }
+ public async Task GuardarConfiguracionPago(GuardarConfiguracionPagoDTO x,int usuario)
+ {
+  await using var db=new SqlConnection(cs);
+  await db.ExecuteAsync("dbo.sp_guardar_configuracion_pago_trabajador",new{x.IdVendedor,x.SalarioMensual,BonosJson=JsonSerializer.Serialize(x.Bonos),IdUsuario=usuario},commandType:CommandType.StoredProcedure);
+ }
 }

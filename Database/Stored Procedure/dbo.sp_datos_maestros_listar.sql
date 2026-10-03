@@ -31,6 +31,12 @@ BEGIN
         SELECT id_motivo Id, codigo Codigo, nombre Nombre, orden Orden, activo Activo FROM dbo.motivo_salida_inventario WHERE @Query='' OR nombre LIKE '%'+@Query+'%' OR codigo LIKE '%'+@Query+'%' ORDER BY orden,nombre;
     ELSE IF @Entidad = 'preguntas-evaluacion'
         SELECT id_pregunta Id, pregunta Pregunta, orden Orden, activo Activo FROM dbo.pregunta_evaluacion WHERE @Query='' OR pregunta LIKE '%'+@Query+'%' ORDER BY orden,pregunta;
+    ELSE IF @Entidad = 'bonos-planilla'
+        SELECT id_bono Id,codigo Codigo,nombre Nombre,descripcion Descripcion,tipo_calculo TipoCalculo,
+               porcentaje Porcentaje,meta_minima MetaMinima,monto_bono MontoBono,activo Activo
+        FROM dbo.bono_planilla
+        WHERE @Query='' OR nombre LIKE '%'+@Query+'%' OR codigo LIKE '%'+@Query+'%' OR descripcion LIKE '%'+@Query+'%'
+        ORDER BY nombre;
     ELSE THROW 50001, 'Catálogo de datos maestros no permitido.', 1;
 END
 GO

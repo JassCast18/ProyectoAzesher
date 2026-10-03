@@ -8,14 +8,16 @@ using Core.DTOs;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Core.Services;
+using Core.Integrations.Digifact;
 
 namespace Core.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class VentasController(IVentaProviderDTO ventaProvider) : ControllerBase
+    public class VentasController(IVentaProviderDTO ventaProvider, IDigifactClient digifact) : ControllerBase
     {
         private readonly IVentaProviderDTO _ventaProvider = ventaProvider;
+        private readonly IDigifactClient _digifact = digifact;
 
         private class ReciboPdfData
         {
@@ -318,6 +320,12 @@ namespace Core.Controllers
                     });
                 }
 
+                var nitValidation = await _digifact.ValidateNitAsync(request.ClienteNit, HttpContext.RequestAborted);
+                if (!nitValidation.IsValid)
+                    return BadRequest(new ApiResponse<object> { Success = false, Message = nitValidation.Message });
+                request.ClienteNit = nitValidation.Nit;
+                if (!nitValidation.IsConsumerFinal) request.ClienteNombre = nitValidation.Name;
+
                 var idUsuarioClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
                 if (!int.TryParse(idUsuarioClaim, out var idUsuario))
                 {
@@ -361,6 +369,11 @@ namespace Core.Controllers
                     Success = false,
                     Message = ex.Message
                 });
+            }
+            catch (DigifactException ex)
+            {
+                return StatusCode(ex.StatusCode is >= 400 and < 600 ? ex.StatusCode.Value : 502,
+                    new ApiResponse<object> { Success = false, Message = ex.Message });
             }
             catch (Exception ex)
             {

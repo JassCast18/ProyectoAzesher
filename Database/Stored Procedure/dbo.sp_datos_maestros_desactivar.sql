@@ -8,6 +8,7 @@ BEGIN
     ELSE IF @Entidad='categorias-producto' UPDATE dbo.categoria_producto SET activo=0 WHERE id_categoria=@Id;
     ELSE IF @Entidad='motivos-salida' UPDATE dbo.motivo_salida_inventario SET activo=0 WHERE id_motivo=@Id;
     ELSE IF @Entidad='preguntas-evaluacion' UPDATE dbo.pregunta_evaluacion SET activo=0 WHERE id_pregunta=@Id;
+    ELSE IF @Entidad='bonos-planilla' BEGIN UPDATE dbo.bono_planilla SET activo=0 WHERE id_bono=@Id; UPDATE dbo.trabajador_bono SET activo=0 WHERE id_bono=@Id; END
     ELSE IF @Entidad='proveedor-producto'
     BEGIN
         DECLARE @r INT = @Id / 1000000, @p INT = @Id % 1000000;

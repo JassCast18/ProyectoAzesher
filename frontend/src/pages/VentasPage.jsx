@@ -8,6 +8,7 @@ import { getSalesDraft, saveSalesDraft } from '../state/ventasDraftStore';
 import NotificationToast from '../components/NotificationToast';
 import PaymentMethodsPanel from '../components/PaymentMethodsPanel';
 import CreditCustomerModal from '../components/CreditCustomerModal';
+import NitValidationField from '../components/NitValidationField';
 
 const money = new Intl.NumberFormat('es-GT', {
     style: 'currency',
@@ -41,6 +42,7 @@ export default function VentasPage() {
     const [notification, setNotification] = useState(null);
     const [sellers, setSellers] = useState([]);
     const [selectedSellerId, setSelectedSellerId] = useState(() => initialDraft?.selectedSellerId ?? '');
+    const [nitValidated, setNitValidated] = useState(() => !initialDraft?.customer?.nit || String(initialDraft.customer.nit).toUpperCase() === 'CF');
 
     const total = useMemo(() => cartItems.reduce((sum, item) => sum + item.subtotal, 0), [cartItems]);
     const selectedBranch = useMemo(() => sucursales.find((branch) => String(branch.idSucursal) === String(selectedSucursalId)), [sucursales, selectedSucursalId]);
@@ -182,6 +184,7 @@ export default function VentasPage() {
                 telefono: creditCustomer.telefono || '',
             }));
             setSelectedClient(creditCustomer);
+            setNitValidated(!creditCustomer.nit || String(creditCustomer.nit).toUpperCase() === 'CF');
         }
     }, [paymentMethod, paymentDetails.credit.customer]);
 
@@ -203,6 +206,7 @@ export default function VentasPage() {
         setClientQuery(`${client.nit || ''} - ${client.nombre}`.trim());
         setClientResults([]);
         setNotification(null);
+        setNitValidated(!client.nit || String(client.nit).toUpperCase() === 'CF');
     };
 
     const addItem = () => {
@@ -257,6 +261,10 @@ export default function VentasPage() {
     };
 
     const handleGenerateReceipt = async () => {
+        if (!nitValidated) {
+            setNotification({ message: 'Valida el NIT del cliente antes de generar la venta.', type: 'warning' });
+            return;
+        }
         const validation = validateGenerateReceipt({
             cartItems,
             customer,
@@ -497,14 +505,15 @@ export default function VentasPage() {
                                 )}
                             </div>
 
-                            <input
-                                value={customer.nit}
-                                onChange={(event) => {
-                                    setCustomer((current) => ({ ...current, nit: event.target.value }));
-                                    setSelectedClient(null);
+                            <NitValidationField
+                                value={customer.nit || 'CF'}
+                                onChange={(nit) => { setCustomer((current) => ({ ...current, nit })); setSelectedClient(null); }}
+                                onValidated={(valid, result) => {
+                                    setNitValidated(valid);
+                                    if (valid && result && !result.isConsumerFinal)
+                                        setCustomer((current) => ({ ...current, nit: result.nit, nombre: result.name }));
                                 }}
-                                placeholder="Buscar por nit o cf"
-                                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-teal focus:bg-white"
+                                inputClassName="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-teal focus:bg-white"
                             />
 
                             <input
@@ -558,7 +567,7 @@ export default function VentasPage() {
                     <button
                         type="button"
                         onClick={handleGenerateReceipt}
-                        disabled={cartItems.length === 0}
+                        disabled={cartItems.length === 0 || !nitValidated}
                         className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                     >
                         Generar recibo

@@ -38,4 +38,9 @@ IF COL_LENGTH('dbo.factura','direccion_receptor') IS NULL ALTER TABLE dbo.factur
 IF COL_LENGTH('dbo.factura','numero_autorizacion') IS NULL ALTER TABLE dbo.factura ADD numero_autorizacion VARCHAR(100) NULL;
 IF COL_LENGTH('dbo.factura','fecha_certificacion') IS NULL ALTER TABLE dbo.factura ADD fecha_certificacion DATETIME NULL;
 IF COL_LENGTH('dbo.factura','fecha_firma') IS NULL ALTER TABLE dbo.factura ADD fecha_firma DATETIME NULL;
+IF COL_LENGTH('dbo.factura','referencia_interna') IS NULL ALTER TABLE dbo.factura ADD referencia_interna VARCHAR(36) NULL;
+IF COL_LENGTH('dbo.factura','xml_certificado') IS NULL ALTER TABLE dbo.factura ADD xml_certificado NVARCHAR(MAX) NULL;
+IF COL_LENGTH('dbo.factura','ultimo_error') IS NULL ALTER TABLE dbo.factura ADD ultimo_error NVARCHAR(2000) NULL;
+IF COL_LENGTH('dbo.factura','fecha_anulacion') IS NULL ALTER TABLE dbo.factura ADD fecha_anulacion DATETIME NULL;
+IF COL_LENGTH('dbo.factura','motivo_anulacion') IS NULL ALTER TABLE dbo.factura ADD motivo_anulacion VARCHAR(500) NULL;
 GO

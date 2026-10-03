@@ -22,6 +22,7 @@ import TrabajadoresPage from "../pages/TrabajadoresPage";
 import ResetPasswordPage from "../pages/ResetPasswordPage";
 import BitacoraPage from "../pages/BitacoraPage";
 import SalidaInventarioPage from "../pages/SalidaInventarioPage";
+import PlanillaPage from "../pages/PlanillaPage";
 
 const ProtectedRoute = ({ children, module }) => {
   const { user, hasModuleAccess } = useAuth();
@@ -345,6 +346,16 @@ export default function AppRouter() {
               <ProtectedRoute module="trabajadores">
                 <MainLayout>
                   <TrabajadoresPage mode="sales" />
+                </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/trabajadores/planilla"
+            element={
+              <ProtectedRoute module="trabajadores">
+                <MainLayout>
+                  <PlanillaPage />
                 </MainLayout>
               </ProtectedRoute>
             }

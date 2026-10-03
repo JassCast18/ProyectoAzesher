@@ -4,12 +4,13 @@ import { useNavigate } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import NotificationToast from "../components/NotificationToast";
+import NitValidationField from "../components/NitValidationField";
 
 const money = new Intl.NumberFormat("es-GT", {
   style: "currency",
   currency: "GTQ",
 });
-const empty = { nombre: "", nit: "", telefono: "", correo: "", direccion: "", fechaNacimiento: "" };
+const empty = { nombre: "", nit: "CF", telefono: "", correo: "", direccion: "", fechaNacimiento: "" };
 const pageSize = 10;
 const validPhone = (value) =>
   !value || /^(?:\+?502)?[2-7]\d{7}$/.test(value.replace(/[\s-]/g, ""));
@@ -39,6 +40,8 @@ export default function ClientesPage({ mode = "list" }) {
   const [recent, setRecent] = useState([]);
   const [notification, setNotification] = useState(null);
   const [editing, setEditing] = useState(null);
+  const [nitValidated, setNitValidated] = useState(true);
+  const [editingNitValidated, setEditingNitValidated] = useState(true);
 
   const load = useCallback(
     async (term = "") => {
@@ -80,6 +83,7 @@ export default function ClientesPage({ mode = "list" }) {
     event.preventDefault();
     const error = validate();
     if (error) setNotification({ type: "warning", message: error });
+    else if (!nitValidated) setNotification({ type: "warning", message: "Valida el NIT antes de guardar el cliente." });
     else setConfirm(true);
   };
   const save = async () => {
@@ -97,6 +101,7 @@ export default function ClientesPage({ mode = "list" }) {
       );
       setConfirm(false);
       setForm(empty);
+      setNitValidated(true);
       setNotification({
         type: "success",
         message: "Cliente creado correctamente.",
@@ -145,6 +150,7 @@ export default function ClientesPage({ mode = "list" }) {
       return "";
     })();
     if (error) return setNotification({ type: "warning", message: error });
+    if (!editingNitValidated) return setNotification({ type: "warning", message: "Valida el NIT antes de guardar los cambios." });
     try {
       await axiosClient.put(
         `/operaciones/clientes/${editing.idCliente}`,
@@ -183,11 +189,14 @@ export default function ClientesPage({ mode = "list" }) {
             value={form.nombre}
             set={(value) => setForm({ ...form, nombre: value })}
           />
-          <Input
-            label="NIT"
+          <NitValidationField
             value={form.nit}
-            set={(value) => setForm({ ...form, nit: value.toUpperCase() })}
-            hint="Validación local del dígito verificador."
+            onChange={(nit) => setForm({ ...form, nit })}
+            onValidated={(valid, result) => {
+              setNitValidated(valid);
+              if (valid && result && !result.isConsumerFinal)
+                setForm((current) => ({ ...current, nombre: result.name }));
+            }}
           />
           <Input
             label="Teléfono"
@@ -277,7 +286,10 @@ export default function ClientesPage({ mode = "list" }) {
                         Estado de cuenta
                       </button>}
                       <button
-                        onClick={() => setEditing({ ...client })}
+                        onClick={() => {
+                          setEditing({ ...client });
+                          setEditingNitValidated(!client.nit || String(client.nit).toUpperCase() === "CF");
+                        }}
                         className="rounded-md border px-3 py-2 font-semibold"
                       >
                         Editar
@@ -328,6 +340,8 @@ export default function ClientesPage({ mode = "list" }) {
         <EditClient
           data={editing}
           setData={setEditing}
+          nitValidated={editingNitValidated}
+          setNitValidated={setEditingNitValidated}
           cancel={() => setEditing(null)}
           accept={updateClient}
         />
@@ -511,7 +525,7 @@ function Confirm({ data, cancel, accept }) {
     </div>
   );
 }
-function EditClient({ data, setData, cancel, accept }) {
+function EditClient({ data, setData, cancel, accept, nitValidated, setNitValidated }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4">
       <div className="w-full max-w-xl border bg-white p-6 shadow-xl">
@@ -528,10 +542,14 @@ function EditClient({ data, setData, cancel, accept }) {
             value={data.nombre || ""}
             set={(value) => setData({ ...data, nombre: value })}
           />
-          <Input
-            label="NIT"
-            value={data.nit || ""}
-            set={(value) => setData({ ...data, nit: value.toUpperCase() })}
+          <NitValidationField
+            value={data.nit || "CF"}
+            onChange={(nit) => setData({ ...data, nit })}
+            onValidated={(valid, result) => {
+              setNitValidated(valid);
+              if (valid && result && !result.isConsumerFinal)
+                setData((current) => ({ ...current, nombre: result.name }));
+            }}
           />
           <Input
             label="Teléfono"
@@ -561,7 +579,8 @@ function EditClient({ data, setData, cancel, accept }) {
           </button>
           <button
             onClick={accept}
-            className="rounded-md bg-brand-teal px-4 py-2 font-bold text-white"
+            disabled={!nitValidated}
+            className="rounded-md bg-brand-teal px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:opacity-45"
           >
             Guardar cambios
           </button>

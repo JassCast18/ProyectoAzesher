@@ -165,7 +165,7 @@ export default function ReciboPreviewPage() {
                         <div className="flex flex-col gap-4 border-b px-5 py-5 text-white sm:flex-row sm:items-center sm:justify-between" style={{ backgroundColor: isCredit ? '#334155' : branchColor, borderColor: branchColor }}>
                             <div className="flex items-center gap-4">
                                 <div>
-                                    <h1 className="text-2xl font-semibold text-white">{isCredit ? 'Nota de crédito' : 'Recibo'}</h1>
+                                    <h1 className="text-2xl font-semibold text-white">{isCredit ? 'Cuenta por cobrar' : 'Recibo'}</h1>
                                 </div>
                             </div>
 
@@ -280,7 +280,7 @@ export default function ReciboPreviewPage() {
                                     <div className="flex items-start gap-3">
                                         <BadgeCheck className="mt-0.5 h-5 w-5 flex-none" />
                                         <div>
-                                            <p className="font-semibold">{isCredit ? 'Nota de crédito guardada' : 'Recibo guardado'}</p>
+                                            <p className="font-semibold">{isCredit ? 'Cuenta por cobrar guardada' : 'Recibo guardado'}</p>
                                             <p className="mt-1 text-sm text-emerald-800">
                                                 {savedReceipt.numeroRecibo} · {savedReceipt.numeroFactura}
                                             </p>

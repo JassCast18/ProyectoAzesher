@@ -34,6 +34,7 @@ public class BitacoraMiddleware(RequestDelegate next,ILogger<BitacoraMiddleware>
  private static string DescribeAction(string path,string method)
  {
   var value=path.ToLowerInvariant();
+  if(value.Contains("/trabajadores/configuracion-pago"))return "Actualizo el sueldo y los bonos de un trabajador";
   if(value.Contains("/ventas/autorizar"))return "Autorizó una venta y descontó inventario";
   if(value.Contains("/ventas/recibos")&&value.Contains("anular"))return "Anuló un recibo";
   if(value.Contains("/cobros/abonos"))return "Registró un abono de cliente";

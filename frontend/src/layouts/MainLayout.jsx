@@ -336,6 +336,9 @@ export default function MainLayout({ children }) {
               <SubLink to="/trabajadores/ventas" icon={ReceiptText}>
                 Ventas por trabajador
               </SubLink>
+              <SubLink to="/trabajadores/planilla" icon={Banknote}>
+                Planilla
+              </SubLink>
             </MenuGroup>
           )}
           {hasModuleAccess("configuracion") && <MenuGroup label="Configuración" icon={Settings2} open={isConfigOpen} active={location.pathname.startsWith("/configuracion")} onClick={() => setIsConfigOpen((value) => !value)}><SubLink to="/configuracion/datos-maestros" icon={Settings2}>Datos maestros</SubLink>{isAdministrator && <SubLink to="/configuracion/usuarios" icon={UserIcon}>Usuarios</SubLink>}</MenuGroup>}
