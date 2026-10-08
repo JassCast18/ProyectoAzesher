@@ -23,7 +23,11 @@ git reset --hard "$TARGET_COMMIT"
 rollback() {
   printf 'El despliegue falló; restaurando %s\n' "$CURRENT_COMMIT" >&2
   git reset --hard "$CURRENT_COMMIT"
-  docker compose up -d --build
+  if [[ -f compose.yaml ]]; then
+    docker compose up -d --build
+  else
+    printf 'El commit anterior no incluye compose.yaml; se conservaron los contenedores que ya estaban ejecutándose.\n' >&2
+  fi
 }
 trap rollback ERR
 
@@ -34,13 +38,15 @@ docker compose up -d database
 # La contraseña se obtiene del entorno del contenedor; el archivo .env nunca se ejecuta como Bash.
 MSSQL_SA_PASSWORD="$(docker compose exec -T database printenv MSSQL_SA_PASSWORD | tr -d '\r')"
 docker compose exec -T -e "SQLCMDPASSWORD=${MSSQL_SA_PASSWORD}" database \
-  /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -d AZESHERBD \
+  /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -I -d AZESHERBD \
   < Database/Migrations/20261007_codigos_barras_lector_movil.sql
 docker compose exec -T -e "SQLCMDPASSWORD=${MSSQL_SA_PASSWORD}" database \
-  /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -d AZESHERBD \
+  /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -I -d AZESHERBD \
   < Database/Migrations/20261008_perfil_seguridad.sql
 
-docker compose up -d
+# Las migraciones ya se ejecutaron explícitamente arriba. Evitamos volver a
+# ejecutar el servicio one-shot y arrancamos los servicios de aplicación.
+docker compose up -d --no-deps api frontend caddy
 docker compose ps
 
 for _ in {1..30}; do
