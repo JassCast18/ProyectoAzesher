@@ -1,0 +1,4 @@
+-- La definición desplegable y compatible con instalaciones existentes se encuentra en:
+-- Database/Migrations/20261007_codigos_barras_lector_movil.sql
+-- Incluye sp_listar_codigos_producto, sp_guardar_codigo_producto,
+-- sp_desactivar_codigo_producto y sp_buscar_producto_codigo_barra.

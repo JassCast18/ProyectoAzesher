@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { User, Lock, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { User, Lock, Eye, EyeOff, ShieldCheck, X } from "lucide-react";
 import logoAzeShers from "../assets/logo.png";
 import axiosClient from "../api/axiosClient";
+import LoadingIndicator from "../components/LoadingIndicator";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
@@ -12,6 +13,8 @@ export default function LoginPage() {
   const [mensaje, setMensaje] = useState("");
   const [forgot, setForgot] = useState(false);
   const [identifier, setIdentifier] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [resetNotice, setResetNotice] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -24,7 +27,9 @@ export default function LoginPage() {
       return;
     }
 
+    setBusy(true);
     const resultado = await login(username, password);
+    setBusy(false);
 
     if (resultado.success) {
       navigate("/dashboard");
@@ -36,21 +41,28 @@ export default function LoginPage() {
   const requestReset = async (event) => {
     event.preventDefault();
     setMensaje("");
+    if (!identifier.trim()) return setMensaje("Ingresa tu usuario o correo.");
+    setBusy(true);
     try {
       const response = await axiosClient.post("/auth/forgot-password", {
         identificador: identifier,
       });
-      setMensaje(response.data.message);
+      setResetNotice(response.data.message);
+      setForgot(false);
+      setIdentifier("");
     } catch (error) {
       setMensaje(
         error.response?.data?.message ||
           "No fue posible solicitar el cambio de contraseña.",
       );
     }
+    finally { setBusy(false); }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
+      {busy && <LoadingIndicator fullScreen label={forgot ? "Solicitando enlace…" : "Iniciando sesión…"} />}
+      {resetNotice && <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/45 p-4" role="dialog" aria-modal="true"><div className="gentle-enter w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"><div className="flex items-start justify-between"><h2 className="text-lg font-bold">Revisa tu correo</h2><button aria-label="Cerrar" onClick={() => setResetNotice("")}><X className="h-5 w-5" /></button></div><p className="mt-3 text-sm text-slate-600">{resetNotice}</p><button className="button-primary mt-6 w-full" onClick={() => setResetNotice("")}>Volver al inicio de sesión</button></div></div>}
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border border-gray-100">
         <div className="flex flex-col items-center mb-6">
           <img
@@ -80,7 +92,7 @@ export default function LoginPage() {
               placeholder="Usuario o correo"
             />
             {mensaje && <p className="text-sm text-slate-600">{mensaje}</p>}
-            <button className="button-primary w-full">Enviar enlace</button>
+            <button disabled={busy} className="button-primary w-full">Enviar enlace</button>
             <button
               type="button"
               onClick={() => {
@@ -137,6 +149,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
+              disabled={busy}
               className="w-full bg-brand-teal hover:bg-teal-700 text-white font-medium py-3 rounded-lg flex justify-center items-center gap-2 transition-colors"
             >
               <Lock className="h-4 w-4" />

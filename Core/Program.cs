@@ -7,6 +7,8 @@ using Core.Services;
 using Core.Middleware;
 using Core.Configuration;
 using Core.Integrations.Digifact;
+using Core.Hubs;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 EnvFileLoader.Load(Path.Combine(builder.Environment.ContentRootPath, ".env"));
@@ -15,8 +17,8 @@ Dapper.DefaultTypeMap.MatchNamesWithUnderscores = true;
 // Add services to the container.
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<ISaleScannerSessionService, SaleScannerSessionService>();
 builder.Services.AddScoped<IAuthProviderDTO, AuthProvider>();
 builder.Services.AddScoped<ICatalogoProviderDTO, CatalogoProvider>();
 builder.Services.AddScoped<IVentaProviderDTO, VentaProvider>();
@@ -25,6 +27,7 @@ builder.Services.AddScoped<IFacturacionProviderDTO, FacturacionProvider>();
 builder.Services.AddScoped<IOperacionProviderDTO, OperacionProvider>();
 builder.Services.AddScoped<ITrabajadorProviderDTO, TrabajadorProvider>();
 builder.Services.AddScoped<IPasswordResetEmailService, PasswordResetEmailService>();
+builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<IDatosMaestrosProviderDTO, DatosMaestrosProvider>();
 builder.Services.AddScoped<ICobroProviderDTO, CobroProvider>();
 builder.Services.AddScoped<IBitacoraProviderDTO, BitacoraProvider>();
@@ -57,14 +60,24 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+var frontendBaseUrl = builder.Configuration["FrontendBaseUrl"]?.TrimEnd('/')
+    ?? "http://localhost:5173";
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins(frontendBaseUrl)
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
+});
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 
@@ -72,11 +85,7 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
-
+app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 
 app.UseCors("AllowReactApp");
@@ -86,5 +95,6 @@ app.UseMiddleware<BitacoraMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<SaleScannerHub>("/hubs/sale-scanner");
 
 app.Run();

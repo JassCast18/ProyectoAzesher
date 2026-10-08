@@ -25,6 +25,39 @@ public class InventarioProvider(IConfiguration configuration) : IInventarioProvi
         return result.ToList();
     }
 
+    public Task<List<ProductoCodigoBarraDTO>> ObtenerCodigosProductoAsync(int idProducto) =>
+        QueryList<ProductoCodigoBarraDTO>("dbo.sp_listar_codigos_producto", new { IdProducto = idProducto });
+
+    public async Task<int> GuardarCodigoProductoAsync(int idProducto, GuardarProductoCodigoBarraDTO codigo, int idUsuario)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        try
+        {
+            return await connection.QuerySingleAsync<int>("dbo.sp_guardar_codigo_producto",
+                new { IdProducto = idProducto, Codigo = codigo.Codigo.Trim(), Tipo = codigo.Tipo.Trim(), IdUsuario = idUsuario },
+                commandType: CommandType.StoredProcedure);
+        }
+        catch (SqlException ex) when (ex.Number >= 50000)
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
+    public async Task DesactivarCodigoProductoAsync(int idProducto, int idCodigoBarra, int idUsuario)
+    {
+        using var connection = new SqlConnection(_connectionString);
+        try
+        {
+            await connection.ExecuteAsync("dbo.sp_desactivar_codigo_producto",
+                new { IdProducto = idProducto, IdCodigoBarra = idCodigoBarra, IdUsuario = idUsuario },
+                commandType: CommandType.StoredProcedure);
+        }
+        catch (SqlException ex) when (ex.Number >= 50000)
+        {
+            throw new InvalidOperationException(ex.Message, ex);
+        }
+    }
+
     public async Task<List<ProductoEntradaDTO>> BuscarProductosEntradaAsync(int idProveedor, string query) => await QueryList<ProductoEntradaDTO>("dbo.sp_buscar_productos_entrada", new { IdProveedor = idProveedor, Query = query?.Trim() ?? "" });
     public async Task<List<ProveedorEntradaDTO>> ObtenerProveedoresAsync() => await QueryList<ProveedorEntradaDTO>("dbo.sp_obtener_proveedores_entrada", null);
     public async Task<List<EntradaPedidoConsultaDTO>> BuscarEntradasAsync(int idSucursal, string query) => await QueryList<EntradaPedidoConsultaDTO>("dbo.sp_buscar_entradas_pedido", new { IdSucursal = idSucursal, Query = query?.Trim() ?? "" });

@@ -2,6 +2,7 @@ using Core.DTOs;
 using Core.Models;
 using Microsoft.AspNetCore.Mvc;
 using Core.DTOs.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Core.Controllers
 {
@@ -59,6 +60,18 @@ namespace Core.Controllers
                     Errors = ex.Message
                 });
             }
+        }
+
+        [Authorize]
+        [HttpGet("productos/por-codigo")]
+        public async Task<IActionResult> BuscarProductoPorCodigo([FromQuery] string codigo, [FromQuery] int idSucursal)
+        {
+            if (string.IsNullOrWhiteSpace(codigo) || idSucursal <= 0)
+                return BadRequest(new ApiResponse<object> { Success = false, Message = "Ingresa un código y selecciona una sucursal." });
+            var producto = await _catalogoProvider.ObtenerProductoPorCodigoAsync(codigo, idSucursal);
+            return producto is null
+                ? NotFound(new ApiResponse<object> { Success = false, Message = "No se encontró un producto disponible con ese código." })
+                : Ok(new ApiResponse<ProductoCatalogoDTO> { Success = true, Message = "Producto encontrado.", Data = producto });
         }
 
         [HttpGet("vendedores")]

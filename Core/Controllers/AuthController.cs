@@ -12,7 +12,7 @@ namespace Core.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class AuthController(IAuthProviderDTO authProvider, IPasswordResetEmailService emailService, IConfiguration configuration, IBitacoraProviderDTO bitacora) : ControllerBase
+    public class AuthController(IAuthProviderDTO authProvider, IPasswordResetEmailService emailService, IConfiguration configuration, IBitacoraProviderDTO bitacora, AccountService accountService) : ControllerBase
     {
         private readonly IAuthProviderDTO _authProvider = authProvider;
 
@@ -66,7 +66,7 @@ namespace Core.Controllers
                 if (idSucursalParaSP == 0) idSucursalParaSP = null;
                 var listaSucursales = await _authProvider.ObtenerSucursalesPorUsuarioAsync(idSucursalParaSP);
 
-                usuarioEnBD.password = null;
+                usuarioEnBD.password = string.Empty;
 
                 string token = _authProvider.GenerarTokenJwt(usuarioEnBD);
 
@@ -124,12 +124,14 @@ namespace Core.Controllers
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody]ResetPasswordRequestDTO request)
         {
-            if(string.IsNullOrWhiteSpace(request.Token)||string.IsNullOrWhiteSpace(request.Password)||request.Password.Length<8)
-                return BadRequest(new ApiResponse<object>{Success=false,Message="El enlace y una contraseña de al menos 8 caracteres son obligatorios."});
+            if(string.IsNullOrWhiteSpace(request.Token))
+                return BadRequest(new ApiResponse<object>{Success=false,Message="El enlace de recuperación es obligatorio."});
+            if(!PasswordPolicy.IsValid(request.Password))
+                return BadRequest(new ApiResponse<object>{Success=false,Message=PasswordPolicy.Message});
             try
             {
                 var hash=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(request.Token)));
-                await _authProvider.RestaurarPassword(hash,BCrypt.Net.BCrypt.HashPassword(request.Password));
+                await accountService.ResetPasswordAsync(hash,request.Password);
                 return Ok(new ApiResponse<object>{Success=true,Message="Contraseña actualizada. Ya puedes iniciar sesión."});
             }
             catch(Exception e){return BadRequest(new ApiResponse<object>{Success=false,Message=e.Message});}

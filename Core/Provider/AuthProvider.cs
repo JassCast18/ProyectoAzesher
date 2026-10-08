@@ -101,10 +101,5 @@ namespace Core.Provider
             await using var db = new SqlConnection(_connectionString);
             await db.ExecuteAsync("dbo.sp_guardar_token_password",new{IdUsuario=idUsuario,TokenHash=tokenHash,FechaExpiracion=fechaExpiracion},commandType:CommandType.StoredProcedure);
         }
-        public async Task RestaurarPassword(string tokenHash,string passwordHash)
-        {
-            await using var db = new SqlConnection(_connectionString);
-            await db.ExecuteAsync("dbo.sp_restaurar_password",new{TokenHash=tokenHash,PasswordHash=passwordHash},commandType:CommandType.StoredProcedure);
-        }
     }
 }

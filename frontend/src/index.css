@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Indicador ligero con el giro y proporciones del spinner de Bootstrap. */
+.bootstrap-spinner { display: inline-block; width: 2.5rem; height: 2.5rem; border: .25em solid var(--branch-color, #008ba8); border-right-color: transparent; border-radius: 50%; animation: bootstrap-spin .75s linear infinite; }
+@keyframes bootstrap-spin { to { transform: rotate(360deg); } }
+@keyframes gentle-enter { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+.gentle-enter { animation: gentle-enter .2s ease-out both; }
+@media (prefers-reduced-motion: reduce) { .bootstrap-spinner { animation-duration: 2s; } .gentle-enter { animation: none; } }
+
 @layer components {
   .button-primary { @apply inline-flex items-center justify-center gap-2 rounded-md bg-brand-teal px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50; }
   .button-secondary { @apply inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50; }

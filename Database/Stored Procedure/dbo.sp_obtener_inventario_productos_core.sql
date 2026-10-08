@@ -10,7 +10,7 @@ BEGIN
     SELECT
         i.id_inventario AS IdInventario,
         p.id_producto AS IdProducto,
-        p.cod_producto AS Codigo,
+        COALESCE(cb.codigo, p.cod_producto) AS Codigo,
         p.nombre AS Nombre,
         p.descripcion AS Descripcion,
         p.precio AS Precio,
@@ -25,12 +25,23 @@ BEGIN
     FROM dbo.inventario i
     INNER JOIN dbo.producto p ON p.id_producto = i.id_producto
     INNER JOIN dbo.sucursal s ON s.id_sucursal = i.id_sucursal
+    OUTER APPLY (
+        SELECT TOP 1 codigo
+        FROM dbo.producto_codigo_barra
+        WHERE id_producto = p.id_producto AND activo = 1
+        ORDER BY id_codigo_barra
+    ) cb
     WHERE i.id_sucursal = @IdSucursal
       AND (
           @Busqueda = ''
           OR p.nombre LIKE '%' + @Busqueda + '%'
           OR ISNULL(p.descripcion, '') LIKE '%' + @Busqueda + '%'
           OR CONVERT(VARCHAR(20), p.id_producto) = @Busqueda
+          OR EXISTS (
+              SELECT 1 FROM dbo.producto_codigo_barra x
+              WHERE x.id_producto = p.id_producto AND x.activo = 1
+                AND x.codigo LIKE '%' + @Busqueda + '%'
+          )
       )
     ORDER BY p.nombre, p.id_producto;
 END;

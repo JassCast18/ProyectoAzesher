@@ -64,6 +64,51 @@ public class InventarioController(IInventarioProviderDTO inventarioProvider) : C
         }
     }
 
+    [HttpGet("productos/{idProducto:int}/codigos-barras")]
+    public async Task<IActionResult> ObtenerCodigosBarras(int idProducto) => Ok(new ApiResponse<IEnumerable<ProductoCodigoBarraDTO>>
+    {
+        Success = true,
+        Message = "Códigos de barras obtenidos.",
+        Data = await inventarioProvider.ObtenerCodigosProductoAsync(idProducto)
+    });
+
+    [HttpPost("productos/{idProducto:int}/codigos-barras")]
+    public async Task<IActionResult> GuardarCodigoBarras(int idProducto, [FromBody] GuardarProductoCodigoBarraDTO request)
+    {
+        var code = request.Codigo?.Trim() ?? string.Empty;
+        if (!System.Text.RegularExpressions.Regex.IsMatch(code, "^[A-Za-z0-9._-]{4,100}$"))
+            return BadRequest(new ApiResponse<object> { Success = false, Message = "El código debe contener entre 4 y 100 letras, números, puntos, guiones o guion bajo." });
+        var type = request.Tipo?.Trim().ToUpperInvariant() ?? "CODE128";
+        if (type is not ("CODE128" or "EAN13" or "EAN8" or "UPC" or "QR" or "INTERNO"))
+            return BadRequest(new ApiResponse<object> { Success = false, Message = "El tipo de código seleccionado no es válido." });
+        request.Tipo = type;
+        var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+        try
+        {
+            var barcodeId = await inventarioProvider.GuardarCodigoProductoAsync(idProducto, request, userId);
+            return Ok(new ApiResponse<object> { Success = true, Message = "Código asignado correctamente.", Data = new { IdCodigoBarra = barcodeId } });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message });
+        }
+    }
+
+    [HttpDelete("productos/{idProducto:int}/codigos-barras/{idCodigoBarra:int}")]
+    public async Task<IActionResult> DesactivarCodigoBarras(int idProducto, int idCodigoBarra)
+    {
+        var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : 0;
+        try
+        {
+            await inventarioProvider.DesactivarCodigoProductoAsync(idProducto, idCodigoBarra, userId);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message });
+        }
+    }
+
     [HttpGet("reporte/{format}")]
     public async Task<IActionResult> DescargarReporte(string format, [FromQuery] int? idSucursal, [FromQuery] string? query = null)
     {

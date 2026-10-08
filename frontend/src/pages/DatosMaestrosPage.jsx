@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Edit3, Plus, Search, X } from "lucide-react";
+import { Edit3, Plus, RefreshCw, Search, X } from "lucide-react";
 import axiosClient from "../api/axiosClient";
 import NotificationToast from "../components/NotificationToast";
 import { useAuth } from "../context/AuthContext";
+import { generateProductCode } from "../utils/productCode";
 
 const palette = ["#008BA8", "#0F766E", "#2563EB", "#7C3AED", "#DB2777", "#EA580C", "#D97706", "#475569"];
 const money = new Intl.NumberFormat("es-GT", { style: "currency", currency: "GTQ" });
@@ -63,6 +64,7 @@ export default function DatosMaestrosPage() {
   const open = (row = null) => {
     const values = {};
     config.fields.forEach(([key, , type]) => { values[key] = row?.[key] ?? (type === "checkbox" ? true : ""); });
+    if (entity === "productos" && !row) values.codigo = generateProductCode();
     setEditing(row);
     setForm(values);
   };
@@ -119,7 +121,7 @@ export default function DatosMaestrosPage() {
         {!rows.length && <p className="p-8 text-center text-sm text-slate-500">No hay registros.</p>}
       </section>
     </div>
-    {form && <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-slate-950/35 p-4"><div className="my-6 w-full max-w-2xl border bg-white shadow-xl"><header className="flex items-center justify-between border-b p-4"><h3 className="font-bold">{editing ? "Editar" : "Nuevo"} · {config.label}</h3><button onClick={close}><X className="h-5 w-5" /></button></header>{entity === "bonos-planilla" && <div className="mx-5 mt-5 border-l-4 border-[var(--branch-color)] bg-slate-50 p-3 text-sm text-slate-600"><b className="block text-slate-800">¿Cómo se aplica?</b>El porcentaje utiliza el total vendido. Las reglas de meta pagan el monto indicado únicamente al alcanzar la meta. El monto fijo se suma siempre en el período.</div>}<div className="grid gap-4 p-5 sm:grid-cols-2">{config.fields.filter((field) => entity !== "bonos-planilla" || showBonusField(field[0], form.tipoCalculo)).map((field) => <Field key={field[0]} field={field} value={form[field[0]]} onChange={(value) => setForm({ ...form, [field[0]]: value })} options={options} />)}</div><footer className="flex justify-end gap-2 border-t p-4"><button onClick={close} className="button-secondary">Cancelar</button><button onClick={save} className="button-primary">Guardar</button></footer></div></div>}
+    {form && <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-slate-950/35 p-4"><div className="my-6 w-full max-w-2xl border bg-white shadow-xl"><header className="flex items-center justify-between border-b p-4"><h3 className="font-bold">{editing ? "Editar" : "Nuevo"} · {config.label}</h3><button onClick={close}><X className="h-5 w-5" /></button></header>{entity === "bonos-planilla" && <div className="mx-5 mt-5 border-l-4 border-[var(--branch-color)] bg-slate-50 p-3 text-sm text-slate-600"><b className="block text-slate-800">¿Cómo se aplica?</b>El porcentaje utiliza el total vendido. Las reglas de meta pagan el monto indicado únicamente al alcanzar la meta. El monto fijo se suma siempre en el período.</div>}<div className="grid gap-4 p-5 sm:grid-cols-2">{config.fields.filter((field) => entity !== "bonos-planilla" || showBonusField(field[0], form.tipoCalculo)).map((field) => entity === "productos" && field[0] === "codigo" ? <label key="codigo" className="text-sm font-semibold">Código interno *<div className="mt-1 flex gap-2"><input className="input bg-slate-50 font-mono" value={form.codigo} readOnly /><button type="button" className="button-secondary shrink-0" onClick={() => setForm(current => ({ ...current, codigo: generateProductCode() }))}><RefreshCw className="h-4 w-4" />Generar código</button></div></label> : <Field key={field[0]} field={field} value={form[field[0]]} onChange={(value) => setForm({ ...form, [field[0]]: value })} options={options} />)}</div><footer className="flex justify-end gap-2 border-t p-4"><button onClick={close} className="button-secondary">Cancelar</button><button onClick={save} className="button-primary">Guardar</button></footer></div></div>}
   </div>;
 }
 

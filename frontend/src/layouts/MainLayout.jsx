@@ -33,6 +33,8 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import logoAzeShers from "../assets/logo.png";
 import { clearSalesDraft } from "../state/ventasDraftStore";
+import LoadingIndicator from "../components/LoadingIndicator";
+import { getPendingRequests } from "../api/axiosClient";
 
 export default function MainLayout({ children }) {
   const {
@@ -46,6 +48,18 @@ export default function MainLayout({ children }) {
     hasModuleAccess,
   } = useAuth();
   const location = useLocation();
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    let delay;
+    const onActivity = event => {
+      window.clearTimeout(delay);
+      if (event.detail > 0) delay = window.setTimeout(() => setLoading(true), 180);
+      else setLoading(false);
+    };
+    window.addEventListener('api-activity', onActivity);
+    onActivity({ detail: getPendingRequests() });
+    return () => { window.removeEventListener('api-activity', onActivity); window.clearTimeout(delay); };
+  }, []);
   const previousPath = useRef(location.pathname);
   useEffect(() => {
     const saleFlow = (path) => path === "/ventas" || path === "/ventas/recibo-preview";
@@ -53,7 +67,7 @@ export default function MainLayout({ children }) {
     previousPath.current = location.pathname;
   }, [location.pathname]);
   // Estado para controlar si el menú lateral está abierto o cerrado
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => window.matchMedia("(min-width: 768px)").matches);
   const [isVentasOpen, setIsVentasOpen] = useState(() =>
     location.pathname.startsWith("/ventas"),
   );
@@ -76,6 +90,12 @@ export default function MainLayout({ children }) {
     location.pathname.startsWith("/trabajadores"),
   );
   const [isConfigOpen, setIsConfigOpen] = useState(() => location.pathname.startsWith("/configuracion"));
+  useEffect(() => {
+    if (location.pathname.startsWith('/trabajadores')) setIsTrabajadoresOpen(true);
+    if (location.pathname.startsWith('/configuracion')) setIsConfigOpen(true);
+    if (location.pathname.startsWith('/clientes')) setIsClientesOpen(true);
+    if (window.innerWidth < 768) setIsSidebarOpen(false);
+  }, [location.pathname]);
   const selectedBranch = sucursales.find(
     (branch) => String(branch.idSucursal) === String(selectedSucursalId),
   );
@@ -86,23 +106,26 @@ export default function MainLayout({ children }) {
       className="flex h-screen bg-slate-50 overflow-hidden"
       style={{ "--branch-color": branchColor }}
     >
+      {isSidebarOpen && <button type="button" aria-label="Cerrar menú" className="fixed inset-0 z-20 bg-slate-900/40 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {/* MENÚ LATERAL (SIDEBAR) COLAPSABLE */}
       <aside
-        className={`app-sidebar border-r flex flex-col transition-all duration-300 ease-in-out z-20
-                ${isSidebarOpen ? "w-64 translate-x-0" : "w-0 -translate-x-full md:translate-x-0 md:w-0 overflow-hidden"}`}
+        className={`app-sidebar fixed inset-y-0 left-0 z-30 flex w-64 flex-col border-r bg-white shadow-xl transition-transform duration-300 ease-in-out md:relative md:inset-auto md:shadow-none
+                ${isSidebarOpen ? "translate-x-0 md:w-64" : "-translate-x-full md:w-0 md:translate-x-0 md:overflow-hidden"}`}
       >
         {/* Contenedor del Logo (se oculta si se cierra el menú) */}
         <div
           className={`p-4 border-b border-gray-100 flex justify-center items-center h-34 transition-opacity duration-300 ${isSidebarOpen ? "opacity-100" : "opacity-0"}`}
         >
-          <img
+          <NavLink to="/dashboard" aria-label="Ir al inicio" className="flex h-full items-center justify-center"><img
             src={logoAzeShers}
             alt="Logo Aze-Sher's"
             className="h-full w-auto object-contain drop-shadow-sm min-w-[120px]"
-          />
+          /></NavLink>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto whitespace-nowrap">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto whitespace-nowrap" onClick={(event) => { if (event.target.closest("a") && window.innerWidth < 768) setIsSidebarOpen(false); }}>
+          <NavLink to="/perfil" className={({ isActive }) => `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${isActive ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`}><UserIcon className="h-5 w-5" />Mi perfil</NavLink>
+          {hasModuleAccess("alertas") && <NavLink to="/alertas" className={({ isActive }) => `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${isActive ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`}><Bell className="h-5 w-5" />Alertas</NavLink>}
           {hasModuleAccess("dashboard") && (
             <NavLink
               to="/dashboard"
@@ -354,7 +377,7 @@ export default function MainLayout({ children }) {
       {/* CONTENIDO PRINCIPAL Y NAVBAR SUPERIOR */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* HEADER (Barra Superior tipo imagen) */}
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-6 z-10">
+        <header className="z-10 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-2 sm:px-6">
           {/* Botón de Hamburguesa para colapsar/abrir el menú */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -364,21 +387,21 @@ export default function MainLayout({ children }) {
           </button>
 
           {/* Lado derecho del Header */}
-          <div className="flex items-center gap-3 sm:gap-5">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-5">
             <span className="hidden min-w-[190px] whitespace-nowrap text-center text-lg font-bold tracking-tight text-slate-700 lg:block">
               Atrévete a soñar
             </span>
             {/* 1. Combobox de Sucursales */}
-            <div className="hidden sm:flex relative items-center border border-gray-200 rounded-lg bg-white hover:bg-slate-50 transition-colors focus-within:border-brand-teal focus-within:ring-1 focus-within:ring-brand-teal">
+            <div className="relative flex min-w-0 max-w-28 items-center rounded-lg border border-gray-200 bg-white transition-colors hover:bg-slate-50 focus-within:border-brand-teal focus-within:ring-1 focus-within:ring-brand-teal sm:max-w-none">
               <span
-                className="ml-3 h-3 w-3 rounded-sm border border-black/10"
+                className="ml-2 hidden h-3 w-3 rounded-sm border border-black/10 sm:block"
                 style={{ backgroundColor: branchColor }}
               />
-              <div className="pl-3 pointer-events-none">
+              <div className="hidden pl-3 pointer-events-none sm:block">
                 <Building2 className="h-4 w-4 text-slate-400" />
               </div>
               <select
-                className="appearance-none bg-transparent py-2 pl-2 pr-8 text-sm font-medium text-slate-700 outline-none cursor-pointer w-full disabled:cursor-not-allowed disabled:text-slate-400"
+                className="w-full min-w-0 cursor-pointer appearance-none bg-transparent py-2 pl-2 pr-6 text-xs font-medium text-slate-700 outline-none disabled:cursor-not-allowed disabled:text-slate-400 sm:pr-8 sm:text-sm"
                 value={selectedSucursalId}
                 onChange={(event) => setSelectedSucursalId(event.target.value)}
                 disabled={isSucursalLocked}
@@ -394,7 +417,7 @@ export default function MainLayout({ children }) {
                   </option>
                 ))}
               </select>
-              <div className="absolute right-3 pointer-events-none">
+              <div className="pointer-events-none absolute right-1 sm:right-3">
                 <ChevronDown className="h-4 w-4 text-slate-400" />
               </div>
             </div>
@@ -403,7 +426,7 @@ export default function MainLayout({ children }) {
             {hasModuleAccess("alertas") && (
               <NavLink
                 to="/alertas"
-                className="relative p-2 text-slate-400 hover:text-brand-teal transition-colors"
+                className="relative hidden p-2 text-slate-400 transition-colors hover:text-brand-teal sm:block"
                 title="Alertas"
               >
                 <Bell className="h-5 w-5" />
@@ -414,7 +437,7 @@ export default function MainLayout({ children }) {
             <div className="hidden sm:block h-8 w-px bg-gray-200 mx-1"></div>
 
             {/* 3. Perfil de Usuario */}
-            <div className="flex items-center gap-3 group cursor-pointer hover:bg-slate-50 p-1.5 rounded-lg transition-colors">
+            <NavLink to="/perfil" title="Editar mi perfil" className="group flex items-center gap-3 rounded-lg p-1.5 transition-colors hover:bg-slate-50">
               {/* Avatar circular */}
               <div className="h-9 w-9 bg-brand-teal rounded-full flex items-center justify-center text-white shadow-sm group-hover:shadow-md transition-shadow">
                 <UserIcon className="h-5 w-5" />
@@ -431,7 +454,7 @@ export default function MainLayout({ children }) {
               </div>
 
               <ChevronDown className="h-4 w-4 text-slate-400 group-hover:text-slate-600 hidden sm:block" />
-            </div>
+            </NavLink>
 
             {/* Botón de Logout directo (opcional, lo puedes mover a un dropdown del perfil luego) */}
             <button
@@ -446,10 +469,11 @@ export default function MainLayout({ children }) {
 
         {/* CONTENIDO DE LA PÁGINA */}
         <main
-          key={selectedSucursalId}
-          className="branch-context flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50"
+          key={`${selectedSucursalId}-${location.pathname}`}
+          className="branch-context relative flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6"
         >
-          {children}
+          <div className="gentle-enter">{children}</div>
+          {loading && <LoadingIndicator label="Conectando con la base de datos…" />}
         </main>
       </div>
     </div>

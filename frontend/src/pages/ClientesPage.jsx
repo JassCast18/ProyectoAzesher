@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Printer, Search, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Plus, Printer, Search, X } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import { useAuth } from "../context/AuthContext";
 import NotificationToast from "../components/NotificationToast";
@@ -26,9 +26,12 @@ const validNit = (value) => {
   return nit.at(-1) === (result === 10 ? "K" : String(result));
 };
 
-export default function ClientesPage({ mode = "list" }) {
+export default function ClientesPage() {
   const { selectedSucursalId } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const createOpen = searchParams.get('crear') === '1';
+  const closeCreate = () => setSearchParams({}, { replace: true });
   const [query, setQuery] = useState("");
   const [clients, setClients] = useState([]);
   const [page, setPage] = useState(1);
@@ -37,7 +40,6 @@ export default function ClientesPage({ mode = "list" }) {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [form, setForm] = useState(empty);
   const [confirm, setConfirm] = useState(false);
-  const [recent, setRecent] = useState([]);
   const [notification, setNotification] = useState(null);
   const [editing, setEditing] = useState(null);
   const [nitValidated, setNitValidated] = useState(true);
@@ -57,13 +59,12 @@ export default function ClientesPage({ mode = "list" }) {
     [selectedSucursalId],
   );
   useEffect(() => {
-    if (mode !== "create") load();
-  }, [load, mode]);
+    load();
+  }, [load]);
   useEffect(() => {
-    if (mode === "create") return undefined;
     const timer = window.setTimeout(() => load(query), 300);
     return () => window.clearTimeout(timer);
-  }, [query, load, mode]);
+  }, [query, load]);
 
   const pages = Math.max(1, Math.ceil(clients.length / pageSize));
   const visible = useMemo(
@@ -88,20 +89,12 @@ export default function ClientesPage({ mode = "list" }) {
   };
   const save = async () => {
     try {
-      const response = await axiosClient.post("/operaciones/clientes", form);
-      setRecent((current) =>
-        [
-          {
-            ...form,
-            idCliente: response.data.data?.idCliente,
-            fechaRegistro: new Date(),
-          },
-          ...current,
-        ].slice(0, 5),
-      );
+      await axiosClient.post("/operaciones/clientes", form);
+      await load(query);
       setConfirm(false);
       setForm(empty);
       setNitValidated(true);
+      closeCreate();
       setNotification({
         type: "success",
         message: "Cliente creado correctamente.",
@@ -172,70 +165,13 @@ export default function ClientesPage({ mode = "list" }) {
     }
   };
 
-  if (mode === "create")
-    return (
-      <Page title="Nuevo cliente">
-        <NotificationToast
-          notification={notification}
-          onClose={() => setNotification(null)}
-        />
-        <form
-          onSubmit={requestSave}
-          className="grid gap-4 border bg-white p-6 md:grid-cols-2"
-        >
-          <Input
-            required
-            label="Nombre o razón social *"
-            value={form.nombre}
-            set={(value) => setForm({ ...form, nombre: value })}
-          />
-          <NitValidationField
-            value={form.nit}
-            onChange={(nit) => setForm({ ...form, nit })}
-            onValidated={(valid, result) => {
-              setNitValidated(valid);
-              if (valid && result && !result.isConsumerFinal)
-                setForm((current) => ({ ...current, nombre: result.name }));
-            }}
-          />
-          <Input
-            label="Teléfono"
-            inputMode="numeric"
-            value={form.telefono}
-            set={(value) =>
-              setForm({ ...form, telefono: value.replace(/[^\d+ -]/g, "") })
-            }
-            hint="8 dígitos; puede incluir +502."
-          />
-          <Input
-            label="Correo"
-            type="email"
-            value={form.correo}
-            set={(value) => setForm({ ...form, correo: value })}
-          />
-          <Input
-            label="Dirección"
-            value={form.direccion}
-            set={(value) => setForm({ ...form, direccion: value })}
-          />
-          <Input label="Fecha de nacimiento" type="date" max={new Date().toISOString().slice(0,10)} value={form.fechaNacimiento} set={(value) => setForm({ ...form, fechaNacimiento: value })} />
-          <button className="bg-brand-teal py-3 font-bold text-white md:col-start-2">
-            Revisar y guardar
-          </button>
-        </form>
-        <RecentTable rows={recent} />
-        {confirm && (
-          <Confirm data={form} cancel={() => setConfirm(false)} accept={save} />
-        )}
-      </Page>
-    );
-
   return (
     <Page title="Clientes">
       <NotificationToast
         notification={notification}
         onClose={() => setNotification(null)}
       />
+      <div className="flex justify-end"><button className="button-primary" onClick={() => setSearchParams({ crear: '1' })}><Plus className="h-4 w-4" />Crear cliente</button></div>
       <section className="border bg-white">
         <div className="relative border-b p-4">
           <Search className="absolute left-7 top-7 h-4 w-4 text-slate-400" />
@@ -346,6 +282,8 @@ export default function ClientesPage({ mode = "list" }) {
           accept={updateClient}
         />
       )}
+      {createOpen && <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-label="Crear cliente"><div className="gentle-enter my-5 w-full max-w-2xl rounded-xl bg-white shadow-2xl"><header className="flex items-center justify-between border-b p-5"><div><h2 className="text-xl font-bold">Nuevo cliente</h2><p className="text-sm text-slate-500">Completa los datos y valida el NIT antes de guardar.</p></div><button type="button" onClick={closeCreate} aria-label="Cerrar"><X className="h-5 w-5" /></button></header><form onSubmit={requestSave} className="grid gap-4 p-5 md:grid-cols-2"><Input required label="Nombre o razón social *" value={form.nombre} set={value => setForm({ ...form, nombre: value })} /><NitValidationField value={form.nit} onChange={nit => setForm({ ...form, nit })} onValidated={(valid, result) => { setNitValidated(valid); if (valid && result && !result.isConsumerFinal) setForm(current => ({ ...current, nombre: result.name })); }} /><Input label="Teléfono" inputMode="numeric" value={form.telefono} set={value => setForm({ ...form, telefono: value.replace(/[^\d+ -]/g, '') })} hint="8 dígitos; puede incluir +502." /><Input label="Correo" type="email" value={form.correo} set={value => setForm({ ...form, correo: value })} /><Input label="Dirección" value={form.direccion} set={value => setForm({ ...form, direccion: value })} /><Input label="Fecha de nacimiento" type="date" max={new Date().toISOString().slice(0, 10)} value={form.fechaNacimiento} set={value => setForm({ ...form, fechaNacimiento: value })} /><div className="flex justify-end gap-2 md:col-span-2"><button type="button" className="button-secondary" onClick={closeCreate}>Cancelar</button><button className="button-primary">Revisar y guardar</button></div></form></div></div>}
+      {confirm && <Confirm data={form} cancel={() => setConfirm(false)} accept={save} />}
     </Page>
   );
 }
@@ -374,40 +312,6 @@ function Input({ label, hint, value, set, ...props }) {
         <small className="mt-1 block font-normal text-slate-500">{hint}</small>
       )}
     </label>
-  );
-}
-function RecentTable({ rows }) {
-  return (
-    <section className="border bg-white">
-      <h2 className="border-b p-4 font-bold">Últimos clientes creados</h2>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-100 text-left">
-            <tr>
-              <th className="p-4">Cliente</th>
-              <th>NIT</th>
-              <th>Teléfono</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {rows.map((row, index) => (
-              <tr key={row.idCliente || index}>
-                <td className="p-4 font-semibold">{row.nombre}</td>
-                <td>{row.nit || "CF"}</td>
-                <td>{row.telefono || "—"}</td>
-                <td>{new Date(row.fechaRegistro).toLocaleString("es-GT")}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {!rows.length && (
-        <p className="p-8 text-center text-sm text-slate-500">
-          Todavía no has creado clientes en esta sesión.
-        </p>
-      )}
-    </section>
   );
 }
 function HistoryTable({ client, rows, loading }) {

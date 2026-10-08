@@ -1,0 +1,12 @@
+[Unit]
+Description=Actualizar Proyecto EVE desde Git
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/proyecto-eve
+ExecStart=/opt/proyecto-eve/deploy/deploy-from-git.sh
+TimeoutStartSec=20min

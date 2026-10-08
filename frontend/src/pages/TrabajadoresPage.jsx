@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import NotificationToast from "../components/NotificationToast";
 import { useAuth } from "../context/AuthContext";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
+import { isStrongPassword, passwordHint } from "../utils/passwordPolicy";
 import {
   Bar,
   BarChart as ReBarChart,
@@ -55,13 +56,14 @@ const emptyUser = {
   activo: true,
   permisos: [],
 };
+const emptyPasswordChange = { passwordActual: "", passwordNueva: "", confirmacion: "" };
 
 export default function TrabajadoresPage({ mode = "register" }) {
   if (mode === "kpis") return <Kpis />;
   if (mode === "evaluation") return <Evaluation />;
   if (mode === "sales") return <Sales />;
-  if (mode === "users") return <Register initialTab="users" singleTab />;
-  return <Register initialTab="workers" singleTab />;
+  if (mode === "users") return <Register key="users" initialTab="users" singleTab />;
+  return <Register key="workers" initialTab="workers" singleTab />;
 }
 
 function Register({ initialTab = "workers", singleTab = false }) {
@@ -79,6 +81,9 @@ function Register({ initialTab = "workers", singleTab = false }) {
   const [statusTarget, setStatusTarget] = useState(null);
   const [workerModal, setWorkerModal] = useState(false);
   const [userModal, setUserModal] = useState(false);
+  const [createUserModal, setCreateUserModal] = useState(false);
+  const [passwordTarget, setPasswordTarget] = useState(null);
+  const [adminPassword, setAdminPassword] = useState(emptyPasswordChange);
   const load = useCallback(async () => {
     const workerResponse = await axiosClient.get("/trabajadores", {
       params: { idSucursal: selectedSucursalId },
@@ -148,10 +153,10 @@ function Register({ initialTab = "workers", singleTab = false }) {
       });
     if (systemUser.telefono && !/^\d{8}$/.test(systemUser.telefono))
       return setNotice({ type: "warning", message: "El teléfono debe contener exactamente 8 números." });
-    if (systemUser.password && systemUser.password.length < 8)
+    if (systemUser.password && !isStrongPassword(systemUser.password))
       return setNotice({
         type: "warning",
-        message: "La contraseña debe tener al menos 8 caracteres.",
+        message: passwordHint,
       });
     if (!validEmail(systemUser.correo))
       return setNotice({ type: "warning", message: "El correo no es válido." });
@@ -166,6 +171,7 @@ function Register({ initialTab = "workers", singleTab = false }) {
     try {
       await axiosClient.post("/trabajadores/usuarios", {
         ...systemUser,
+        password: systemUser.idUsuario ? null : systemUser.password,
         idSucursal: systemUser.idSucursal
           ? Number(systemUser.idSucursal)
           : null,
@@ -173,6 +179,7 @@ function Register({ initialTab = "workers", singleTab = false }) {
       });
       setSystemUser(emptyUser);
       setUserModal(false);
+      setCreateUserModal(false);
       await load();
       setNotice({ type: "success", message: "Usuario guardado." });
     } catch (error) {
@@ -194,6 +201,23 @@ function Register({ initialTab = "workers", singleTab = false }) {
       password: "",
       permisos: row.permisos ? row.permisos.split(",").filter(Boolean) : [],
     });
+  const changeUserPassword = async () => {
+    if (!isStrongPassword(adminPassword.passwordNueva))
+      return setNotice({ type: "warning", message: passwordHint });
+    if (adminPassword.passwordNueva !== adminPassword.confirmacion)
+      return setNotice({ type: "warning", message: "La confirmación de contraseña no coincide." });
+    try {
+      await axiosClient.post(`/perfil/usuarios/${passwordTarget.idUsuario}/password`, {
+        passwordActual: adminPassword.passwordActual,
+        passwordNueva: adminPassword.passwordNueva,
+      });
+      setPasswordTarget(null);
+      setAdminPassword(emptyPasswordChange);
+      setNotice({ type: "success", message: "Contraseña actualizada." });
+    } catch (error) {
+      setNotice({ type: "error", message: error.response?.data?.message || "No fue posible cambiar la contraseña." });
+    }
+  };
   const changeWorkerStatus = async () => {
     const target = statusTarget;
     setStatusTarget(null);
@@ -325,8 +349,9 @@ function Register({ initialTab = "workers", singleTab = false }) {
           </Table>
         </div>
       ) : (
-        <div className="grid gap-5 xl:grid-cols-[420px_1fr]">
-          <Panel title="Registrar usuario">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border bg-white p-4"><div><h2 className="font-bold">Usuarios del sistema</h2><p className="text-sm text-slate-500">Administra cuentas, roles y permisos.</p></div><button className="button-primary" onClick={() => { setSystemUser(emptyUser); setCreateUserModal(true); }}><Plus className="h-4 w-4" />Crear usuario</button></div>
+          {createUserModal && <EditModal title="Crear usuario" close={() => { setCreateUserModal(false); setSystemUser(emptyUser); }}>
             <Field
               label="Nombres *"
               value={systemUser.nombre}
@@ -340,15 +365,12 @@ function Register({ initialTab = "workers", singleTab = false }) {
               set={(v) => setSystemUser({ ...systemUser, username: v })}
             />
             <Field
-              label={
-                systemUser.idUsuario
-                  ? "Nueva contraseña (opcional)"
-                  : "Contraseña *"
-              }
+              label="Contraseña *"
               type="password"
               value={systemUser.password}
               set={(v) => setSystemUser({ ...systemUser, password: v })}
             />
+            <p className="text-xs text-slate-500">{passwordHint}</p>
             <Field
               label="Correo *"
               type="email"
@@ -424,7 +446,7 @@ function Register({ initialTab = "workers", singleTab = false }) {
               Guardar usuario
             </button>
             <button onClick={() => setSystemUser(emptyUser)} className="button-secondary w-full">Limpiar datos</button>
-          </Panel>
+          </EditModal>}
           <Table
             headers={[
               "Nombre completo",
@@ -442,7 +464,7 @@ function Register({ initialTab = "workers", singleTab = false }) {
                 key={row.idUsuario}
                 className={`border-t ${row.activo ? "hover:bg-slate-50" : "bg-slate-100 text-slate-500"}`}
               >
-                <Td strong><div className="flex min-w-[160px] items-center gap-2"><button title="Editar usuario" onClick={() => { editUser(row); setUserModal(true); }} className="shrink-0 rounded-full border p-2 hover:bg-slate-100"><Pencil className="h-4 w-4" /></button><span>{[row.nombre,row.apellidos].filter(Boolean).join(" ")}{!row.activo && <small className="block font-bold text-red-600">Desactivado</small>}</span></div></Td>
+                <Td strong><div className="flex min-w-[180px] items-center gap-2"><button title="Editar usuario" onClick={() => { editUser(row); setUserModal(true); }} className="shrink-0 rounded-full border p-2 hover:bg-slate-100"><Pencil className="h-4 w-4" /></button><button title={`Cambiar contraseña de ${row.nombre}`} onClick={() => { setPasswordTarget(row); setAdminPassword(emptyPasswordChange); }} className="shrink-0 rounded-full border p-2 hover:bg-slate-100"><KeyRound className="h-4 w-4" /></button><span>{[row.nombre,row.apellidos].filter(Boolean).join(" ")}{!row.activo && <small className="block font-bold text-red-600">Desactivado</small>}</span></div></Td>
                 <Td>{row.username}</Td>
                 <Td>{row.correo || "—"}<small className="block text-slate-500">{row.telefono || "Sin teléfono"}</small></Td>
                 <Td>{row.rol}</Td>
@@ -490,7 +512,6 @@ function Register({ initialTab = "workers", singleTab = false }) {
           <Field label="Apellidos *" value={systemUser.apellidos || ""} set={(v) => setSystemUser({ ...systemUser, apellidos: v })} />
           <Field label="Teléfono" inputMode="numeric" maxLength={8} value={systemUser.telefono || ""} set={(v) => setSystemUser({ ...systemUser, telefono: v.replace(/\D/g, "") })} />
           <Field label="Usuario *" value={systemUser.username} set={(v) => setSystemUser({ ...systemUser, username: v })} />
-          <Field label="Nueva contraseña (opcional)" type="password" value={systemUser.password} set={(v) => setSystemUser({ ...systemUser, password: v })} />
           <Field label="Correo *" type="email" value={systemUser.correo || ""} set={(v) => setSystemUser({ ...systemUser, correo: v })} />
           <Select label="Rol *" value={systemUser.rol} set={(v) => setSystemUser({ ...systemUser, rol: v })} options={[["Administrador", "Administrador"], ["Encargado", "Encargado"]]} />
           <Select label="Sucursal" value={systemUser.idSucursal || ""} set={(v) => setSystemUser({ ...systemUser, idSucursal: v })} options={[["", "Todas las sucursales"], ...sucursales.map((s) => [s.idSucursal, s.nombreSuc])]} />
@@ -500,6 +521,14 @@ function Register({ initialTab = "workers", singleTab = false }) {
           <div className="flex justify-end gap-2"><button className="button-secondary" onClick={() => { setUserModal(false); setSystemUser(emptyUser); }}>Cancelar</button><button className="button-primary" onClick={saveUser}>Guardar cambios</button></div>
         </EditModal>
       )}
+      {passwordTarget && <EditModal title={`Contraseña de ${passwordTarget.nombre}`} close={() => { setPasswordTarget(null); setAdminPassword(emptyPasswordChange); }}>
+        <p className="text-sm text-slate-600">Este cambio no modifica los demás datos del usuario. Confirma con tu contraseña de administrador.</p>
+        <Field label="Tu contraseña actual *" type="password" value={adminPassword.passwordActual} set={(v) => setAdminPassword({ ...adminPassword, passwordActual: v })} />
+        <Field label="Nueva contraseña *" type="password" value={adminPassword.passwordNueva} set={(v) => setAdminPassword({ ...adminPassword, passwordNueva: v })} />
+        <Field label="Confirmar nueva contraseña *" type="password" value={adminPassword.confirmacion} set={(v) => setAdminPassword({ ...adminPassword, confirmacion: v })} />
+        <p className="text-xs text-slate-500">{passwordHint} No se permite reutilizar la actual ni las dos anteriores.</p>
+        <button className="button-primary w-full" onClick={changeUserPassword}>Cambiar contraseña</button>
+      </EditModal>}
     </Page>
   );
 }

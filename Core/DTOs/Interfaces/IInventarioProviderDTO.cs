@@ -3,6 +3,9 @@ namespace Core.DTOs.Interfaces;
 public interface IInventarioProviderDTO
 {
     Task<List<InventarioProductoDTO>> ObtenerProductosAsync(int idSucursal, string query);
+    Task<List<ProductoCodigoBarraDTO>> ObtenerCodigosProductoAsync(int idProducto);
+    Task<int> GuardarCodigoProductoAsync(int idProducto, GuardarProductoCodigoBarraDTO codigo, int idUsuario);
+    Task DesactivarCodigoProductoAsync(int idProducto, int idCodigoBarra, int idUsuario);
     Task<List<ProductoEntradaDTO>> BuscarProductosEntradaAsync(int idProveedor, string query);
     Task<List<ProveedorEntradaDTO>> ObtenerProveedoresAsync();
     Task<int> CrearProductoAsync(CrearProductoEntradaDTO product);

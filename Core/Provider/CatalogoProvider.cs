@@ -40,6 +40,15 @@ namespace Core.Provider
             return resultado.ToList();
         }
 
+        public async Task<ProductoCatalogoDTO?> ObtenerProductoPorCodigoAsync(string codigo, int idSucursal)
+        {
+            using var connection = new SqlConnection(_connectionString);
+            return await connection.QueryFirstOrDefaultAsync<ProductoCatalogoDTO>(
+                "dbo.sp_buscar_producto_codigo_barra",
+                new { Codigo = codigo.Trim(), IdSucursal = idSucursal },
+                commandType: CommandType.StoredProcedure);
+        }
+
         public async Task<List<VendedorCatalogoDTO>> ObtenerVendedoresAsync(int idSucursal)
         {
             using var connection = new SqlConnection(_connectionString);

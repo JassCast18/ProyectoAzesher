@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import axiosClient from "../api/axiosClient";
 import logo from "../assets/logo.png";
+import LoadingIndicator from "../components/LoadingIndicator";
+import { isStrongPassword, passwordHint } from "../utils/passwordPolicy";
 
 export default function ResetPasswordPage() {
   const [params] = useSearchParams();
@@ -9,13 +11,14 @@ export default function ResetPasswordPage() {
   const [confirmation, setConfirmation] = useState("");
   const [message, setMessage] = useState("");
   const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
   const save = async (event) => {
     event.preventDefault();
-    if (password.length < 8)
-      return setMessage("La contraseña debe tener al menos 8 caracteres.");
+    if (!isStrongPassword(password)) return setMessage(passwordHint);
     if (password !== confirmation)
       return setMessage("Las contraseñas no coinciden.");
     try {
+      setBusy(true);
       const response = await axiosClient.post("/auth/reset-password", {
         token: params.get("token") || "",
         password,
@@ -27,10 +30,11 @@ export default function ResetPasswordPage() {
         error.response?.data?.message ||
           "No fue posible cambiar la contraseña.",
       );
-    }
+    } finally { setBusy(false); }
   };
   return (
     <main className="grid min-h-screen place-items-center bg-slate-100 p-4">
+      {busy && <LoadingIndicator fullScreen label="Actualizando contraseña…" />}
       <section className="w-full max-w-md border bg-white p-8 shadow-lg">
         <img src={logo} alt="Aze-Sher's" className="mx-auto mb-5 w-36" />
         <h1 className="text-2xl font-bold">Nueva contraseña</h1>
@@ -46,6 +50,7 @@ export default function ResetPasswordPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <p className="text-xs text-slate-500">{passwordHint}</p>
             <input
               type="password"
               className="input"
@@ -53,7 +58,7 @@ export default function ResetPasswordPage() {
               value={confirmation}
               onChange={(e) => setConfirmation(e.target.value)}
             />
-            <button className="button-primary w-full">
+            <button disabled={busy} className="button-primary w-full">
               Guardar contraseña
             </button>
           </form>

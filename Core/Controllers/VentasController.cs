@@ -534,6 +534,7 @@ namespace Core.Controllers
         {
             var candidatePaths = new[]
             {
+                Path.Combine(AppContext.BaseDirectory, "Assets", "logo.png"),
                 Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "..", "frontend", "src", "assets", "logo.png")),
                 Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "frontend", "src", "assets", "logo.png")),
                 Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "frontend", "src", "assets", "logo.png")),

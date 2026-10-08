@@ -26,7 +26,12 @@ BEGIN
         (@Query = ''
          OR CAST(p.id_producto AS VARCHAR(20)) LIKE '%' + @Query + '%'
          OR p.nombre LIKE '%' + @Query + '%'
-         OR ISNULL(p.descripcion, '') LIKE '%' + @Query + '%')
+         OR ISNULL(p.descripcion, '') LIKE '%' + @Query + '%'
+         OR EXISTS (
+             SELECT 1 FROM dbo.producto_codigo_barra cb
+             WHERE cb.id_producto = p.id_producto AND cb.activo = 1
+               AND cb.codigo LIKE '%' + @Query + '%'
+         ))
         AND (@IdSucursal IS NULL OR i.id_sucursal = @IdSucursal)
         AND ISNULL(i.stock, 0) > 0
     ORDER BY p.nombre;

@@ -1,0 +1,12 @@
+[Unit]
+Description=Respaldo diario de Proyecto EVE
+
+[Timer]
+OnCalendar=*-*-* 02:15:00
+Persistent=true
+RandomizedDelaySec=5m
+Unit=proyecto-eve-backup.service
+
+[Install]
+WantedBy=timers.target
+

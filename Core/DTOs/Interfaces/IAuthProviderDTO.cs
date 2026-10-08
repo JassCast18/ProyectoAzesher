@@ -10,6 +10,5 @@ namespace Core.DTOs.Interfaces
         Task<List<Sucursal>> ObtenerSucursalesPorUsuarioAsync(int? idSucursal);
         Task<PasswordResetUserDTO?> ObtenerUsuarioReset(string identificador);
         Task GuardarTokenReset(int idUsuario,string tokenHash,DateTime fechaExpiracion);
-        Task RestaurarPassword(string tokenHash,string passwordHash);
     }
 }

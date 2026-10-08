@@ -30,10 +30,14 @@ public class BitacoraMiddleware(RequestDelegate next,ILogger<BitacoraMiddleware>
  }
  private static string ActionName(string method)=>method switch{"POST"=>"Registrar","PUT"=>"Actualizar","PATCH"=>"Modificar","DELETE"=>"Eliminar",_=>method};
  private static string Humanize(IEnumerable<string> values)=>string.Join(" / ",values.Where(x=>!int.TryParse(x,out _)).Select(x=>x.Replace('-',' ')));
- private static string ModuleName(string value)=>value.ToLowerInvariant() switch{"ventas"=>"Ventas","inventario"=>"Inventarios","operaciones"=>"Operaciones","facturacion"=>"Facturación","cobros"=>"Cobros","trabajadores"=>"Trabajadores","datos-maestros"=>"Datos maestros","auth"=>"Seguridad",_=>Humanize([value])};
+ private static string ModuleName(string value)=>value.ToLowerInvariant() switch{"ventas"=>"Ventas","inventario"=>"Inventarios","operaciones"=>"Operaciones","facturacion"=>"Facturación","cobros"=>"Cobros","trabajadores"=>"Trabajadores","datos-maestros"=>"Datos maestros","auth" or "perfil"=>"Seguridad",_=>Humanize([value])};
  private static string DescribeAction(string path,string method)
  {
   var value=path.ToLowerInvariant();
+  if(value.Contains("/perfil/usuarios/")&&value.EndsWith("/password"))return "Cambió la contraseña de un usuario";
+  if(value.EndsWith("/perfil/password"))return "Cambió su propia contraseña";
+  if(value.EndsWith("/perfil/verificacion"))return "Solicitó un código de verificación de correo";
+  if(value.EndsWith("/perfil")&&method=="PUT")return "Actualizó su perfil";
   if(value.Contains("/trabajadores/configuracion-pago"))return "Actualizo el sueldo y los bonos de un trabajador";
   if(value.Contains("/ventas/autorizar"))return "Autorizó una venta y descontó inventario";
   if(value.Contains("/ventas/recibos")&&value.Contains("anular"))return "Anuló un recibo";

@@ -23,6 +23,8 @@ import ResetPasswordPage from "../pages/ResetPasswordPage";
 import BitacoraPage from "../pages/BitacoraPage";
 import SalidaInventarioPage from "../pages/SalidaInventarioPage";
 import PlanillaPage from "../pages/PlanillaPage";
+import MobileBarcodeScannerPage from "../pages/MobileBarcodeScannerPage";
+import ProfilePage from "../pages/ProfilePage";
 
 const ProtectedRoute = ({ children, module }) => {
   const { user, hasModuleAccess } = useAuth();
@@ -40,6 +42,8 @@ export default function AppRouter() {
         <Routes>
           <Route path="/" element={<LoginPage />} />
           <Route path="/restablecer-password" element={<ResetPasswordPage />} />
+          <Route path="/lector/:token" element={<MobileBarcodeScannerPage />} />
+          <Route path="/perfil" element={<ProtectedRoute><MainLayout><ProfilePage /></MainLayout></ProtectedRoute>} />
           <Route
             path="/sin-acceso"
             element={
@@ -205,13 +209,7 @@ export default function AppRouter() {
           />
           <Route
             path="/clientes/crear"
-            element={
-              <ProtectedRoute module="clientes">
-                <MainLayout>
-                  <ClientesPage mode="create" />
-                </MainLayout>
-              </ProtectedRoute>
-            }
+            element={<Navigate to="/clientes/listado?crear=1" replace />}
           />
           <Route
             path="/clientes/listado"

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, Trash2, Plus, Building2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Barcode, Search, Trash2, Plus, Building2, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
@@ -9,6 +9,7 @@ import NotificationToast from '../components/NotificationToast';
 import PaymentMethodsPanel from '../components/PaymentMethodsPanel';
 import CreditCustomerModal from '../components/CreditCustomerModal';
 import NitValidationField from '../components/NitValidationField';
+import PhoneScannerModal from '../components/PhoneScannerModal';
 
 const money = new Intl.NumberFormat('es-GT', {
     style: 'currency',
@@ -43,6 +44,10 @@ export default function VentasPage() {
     const [sellers, setSellers] = useState([]);
     const [selectedSellerId, setSelectedSellerId] = useState(() => initialDraft?.selectedSellerId ?? '');
     const [nitValidated, setNitValidated] = useState(() => !initialDraft?.customer?.nit || String(initialDraft.customer.nit).toUpperCase() === 'CF');
+    const [barcode, setBarcode] = useState('');
+    const [readingBarcode, setReadingBarcode] = useState(false);
+    const [phoneScannerOpen, setPhoneScannerOpen] = useState(false);
+    const cartItemsRef = useRef(cartItems);
 
     const total = useMemo(() => cartItems.reduce((sum, item) => sum + item.subtotal, 0), [cartItems]);
     const selectedBranch = useMemo(() => sucursales.find((branch) => String(branch.idSucursal) === String(selectedSucursalId)), [sucursales, selectedSucursalId]);
@@ -95,7 +100,8 @@ export default function VentasPage() {
 
     useEffect(() => {
         setIsSucursalLocked(cartItems.length > 0);
-    }, [cartItems.length, setIsSucursalLocked]);
+        cartItemsRef.current = cartItems;
+    }, [cartItems, setIsSucursalLocked]);
 
     useEffect(() => () => setIsSucursalLocked(false), [setIsSucursalLocked]);
 
@@ -209,27 +215,19 @@ export default function VentasPage() {
         setNitValidated(!client.nit || String(client.nit).toUpperCase() === 'CF');
     };
 
-    const addItem = () => {
-        const validationMessage = validateAddItem({ selectedProduct, quantity });
-        if (validationMessage) {
-            setNotification({ message: validationMessage, type: 'warning' });
-            return;
-        }
-
-        const qty = Number(quantity);
-        const existingIndex = cartItems.findIndex((item) => item.idProducto === selectedProduct.idProducto);
-
-        const nextItems = [...cartItems];
-
+    const addProductToCart = (product, qty = 1, source = 'Producto') => {
+        const currentItems = cartItemsRef.current;
+        const existingIndex = currentItems.findIndex((item) => item.idProducto === product.idProducto);
+        const nextItems = [...currentItems];
         if (existingIndex >= 0) {
             const currentItem = nextItems[existingIndex];
             const updatedQuantity = currentItem.cantidad + qty;
-            if (Number.isFinite(Number(selectedProduct.stock)) && updatedQuantity > Number(selectedProduct.stock)) {
+            if (Number.isFinite(Number(product.stock)) && updatedQuantity > Number(product.stock)) {
                 setNotification({
-                    message: `Solo hay ${selectedProduct.stock} unidades disponibles en esta sucursal.`,
+                    message: `Solo hay ${product.stock} unidades disponibles en esta sucursal.`,
                     type: 'warning',
                 });
-                return;
+                return false;
             }
             nextItems[existingIndex] = {
                 ...currentItem,
@@ -238,26 +236,62 @@ export default function VentasPage() {
             };
         } else {
             nextItems.push({
-                idProducto: selectedProduct.idProducto,
-                nombre: selectedProduct.nombre,
-                precioUnitario: Number(selectedProduct.precio),
+                idProducto: product.idProducto,
+                nombre: product.nombre,
+                precioUnitario: Number(product.precio),
                 cantidad: qty,
-                subtotal: Number(selectedProduct.precio) * qty,
-                idSucursal: selectedProduct.idSucursal ?? selectedSucursalId ?? null,
-                nombreSucursal: selectedProduct.nombreSucursal || selectedBranch?.nombreSuc || '',
+                subtotal: Number(product.precio) * qty,
+                idSucursal: product.idSucursal ?? selectedSucursalId ?? null,
+                nombreSucursal: product.nombreSucursal || selectedBranch?.nombreSuc || '',
             });
         }
-
+        cartItemsRef.current = nextItems;
         setCartItems(nextItems);
+        setNotification({ message: `${source} agregado al pedido.`, type: 'success' });
+        return true;
+    };
+
+    const addItem = () => {
+        const validationMessage = validateAddItem({ selectedProduct, quantity });
+        if (validationMessage) {
+            setNotification({ message: validationMessage, type: 'warning' });
+            return;
+        }
+        if (!addProductToCart(selectedProduct, Number(quantity))) return;
         setSelectedProduct(null);
         setProductQuery('');
         setQuantity(1);
         setProductResults([]);
-        setNotification({ message: 'Producto agregado al pedido.', type: 'success' });
+    };
+
+    const readBarcode = async event => {
+        event?.preventDefault();
+        const code = barcode.trim();
+        if (!effectiveSucursalId) {
+            setNotification({ message: 'Selecciona una sucursal antes de escanear.', type: 'warning' });
+            return;
+        }
+        if (!code) return;
+        setReadingBarcode(true);
+        try {
+            const response = await axiosClient.get('/catalogo/productos/por-codigo', { params: { codigo: code, idSucursal: effectiveSucursalId } });
+            const product = response.data?.data;
+            if (product && addProductToCart(product, 1, 'Producto escaneado')) setBarcode('');
+        } catch (error) {
+            setNotification({ message: error.response?.data?.message || 'No se encontró un producto con ese código.', type: 'error' });
+        } finally {
+            setReadingBarcode(false);
+        }
+    };
+
+    const receivePhoneProduct = product => {
+        addProductToCart(product, 1, 'Producto enviado desde el teléfono');
     };
 
     const removeItem = (idProducto) => {
-        setCartItems((items) => items.filter((item) => item.idProducto !== idProducto));
+        const nextItems = cartItemsRef.current.filter((item) => item.idProducto !== idProducto);
+        cartItemsRef.current = nextItems;
+        setCartItems(nextItems);
     };
 
     const handleGenerateReceipt = async () => {
@@ -329,6 +363,21 @@ export default function VentasPage() {
                                 <div className="rounded-full bg-teal-50 p-3 text-brand-teal"><Search className="h-5 w-5" /></div>
                             </div>
                         </div>
+
+                        <form onSubmit={readBarcode} className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
+                                <label className="flex-1">
+                                    <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-600">Lector de código de barras</span>
+                                    <span className="relative block">
+                                        <Barcode className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                                        <input autoFocus value={barcode} onChange={event => setBarcode(event.target.value)} placeholder="Escanea aquí con el lector USB o Bluetooth" autoComplete="off" className="h-11 w-full rounded-lg border border-slate-300 bg-white pl-11 pr-3 font-mono text-sm outline-none focus:border-[var(--branch-color)] focus:ring-2 focus:ring-cyan-100" />
+                                    </span>
+                                </label>
+                                <button type="submit" disabled={readingBarcode || !barcode.trim()} className="button-primary h-11 justify-center px-5 disabled:opacity-50"><Barcode className="h-4 w-4" />{readingBarcode ? 'Buscando…' : 'Agregar código'}</button>
+                                <button type="button" onClick={() => setPhoneScannerOpen(true)} disabled={!effectiveSucursalId} className="button-secondary h-11 justify-center px-5 disabled:opacity-50"><Smartphone className="h-4 w-4" />Usar teléfono</button>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">El lector físico escribe el código y lo agrega al enviar Enter. El teléfono puede conectarse por QR o por enlace.</p>
+                        </form>
 
                         <div className="mt-4 grid gap-3 md:grid-cols-[1.7fr_0.7fr_auto]">
                             <div className="relative">
@@ -584,6 +633,13 @@ export default function VentasPage() {
                 onChange={(credit) => setPaymentDetails((current) => ({ ...current, credit }))}
                 total={total}
                 onError={showPaymentError}
+            />
+            <PhoneScannerModal
+                open={phoneScannerOpen}
+                idSucursal={effectiveSucursalId}
+                onClose={() => setPhoneScannerOpen(false)}
+                onProductScanned={receivePhoneProduct}
+                onNotify={(type, message) => setNotification({ type, message })}
             />
 
             <div className="border border-brand-teal bg-white px-6 py-4 text-slate-900 shadow-sm">

@@ -1,0 +1,16 @@
+.git
+.github
+.vs
+.vscode
+**/bin
+**/obj
+**/node_modules
+**/.env
+**/.env.*
+!**/.env.example
+**/*.user
+**/*.suo
+**/*.log
+Database
+README.md
+

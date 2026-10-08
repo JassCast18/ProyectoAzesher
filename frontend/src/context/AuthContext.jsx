@@ -94,6 +94,11 @@ export const AuthProvider = ({ children }) => {
     setIsSucursalLocked(false);
   };
 
+  const updateToken = (token) => {
+    localStorage.setItem("token", token);
+    setUser(jwtDecode(token));
+  };
+
   const selectSucursal = (idSucursal) => {
     if (isSucursalLocked) return;
 
@@ -138,6 +143,7 @@ export const AuthProvider = ({ children }) => {
         isSucursalLocked,
         setIsSucursalLocked,
         login,
+        updateToken,
         logout,
         isAdministrator: isAdministratorRole(user),
         hasModuleAccess,

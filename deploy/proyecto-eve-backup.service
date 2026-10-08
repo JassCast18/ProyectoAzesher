@@ -1,0 +1,11 @@
+[Unit]
+Description=Respaldo verificado de AZESHERBD
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=root
+WorkingDirectory=/opt/proyecto-eve
+ExecStart=/opt/proyecto-eve/deploy/backup-db.sh
+
