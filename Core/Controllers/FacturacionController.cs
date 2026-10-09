@@ -13,7 +13,7 @@ using QuestPDF.Infrastructure;
 namespace Core.Controllers;
 
 [Authorize, ApiController, Route("api/facturacion")]
-public class FacturacionController(IFacturacionProviderDTO provider, IDigifactClient digifact, IDigifactNucFactory nucFactory, NotificationService notifications, ILogger<FacturacionController> logger) : ControllerBase
+public class FacturacionController(IFacturacionProviderDTO provider, IDigifactClient digifact, IDigifactNucFactory nucFactory, NotificationService notifications, ILogger<FacturacionController> logger, InvoiceCertificationQueue certificationQueue, InvoicePdfCache pdfCache) : ControllerBase
 {
     [HttpGet("digifact/estado")]
     public IActionResult DigifactStatus() => Ok(Result("Estado de integración.", digifact.GetStatus()));
@@ -54,7 +54,9 @@ public class FacturacionController(IFacturacionProviderDTO provider, IDigifactCl
             request.Nit = validation.Nit;
             if (!validation.IsConsumerFinal) request.Nombre = validation.Name;
             var id = await provider.AutorizarAsync(request);
-            return await Certify(id, "Factura FEL certificada correctamente.");
+            var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUser) ? parsedUser : 0;
+            certificationQueue.Queue(id, userId);
+            return Accepted(Result("La factura se generará en segundo plano. Te notificaremos cuando esté lista.", new { IdFactura = id, Estado = "Pendiente" }));
         }
         catch (DigifactException exception) { return ProviderError(exception); }
         catch (Exception exception) { return BadRequest(Failure(exception.Message)); }
@@ -72,7 +74,9 @@ public class FacturacionController(IFacturacionProviderDTO provider, IDigifactCl
             request.Nit = validation.Nit;
             if (!validation.IsConsumerFinal) request.Nombre = validation.Name;
             var id = await provider.FacturarAbonoAsync(request);
-            return await Certify(id, "Factura FEL del abono certificada correctamente.");
+            var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUser) ? parsedUser : 0;
+            certificationQueue.Queue(id, userId);
+            return Accepted(Result("La factura del abono se generará en segundo plano. Te notificaremos cuando esté lista.", new { IdFactura = id, Estado = "Pendiente" }));
         }
         catch (DigifactException exception) { return ProviderError(exception); }
         catch (Exception exception) { return BadRequest(Failure(exception.Message)); }
@@ -106,6 +110,9 @@ public class FacturacionController(IFacturacionProviderDTO provider, IDigifactCl
     {
         var invoice = await provider.ObtenerAsync(id);
         if (invoice is null) return NotFound();
+
+        if (pdfCache.TryGet(id, out var cached) && cached is not null)
+            return File(cached.Content, cached.ContentType, cached.FileName);
 
         if (!string.IsNullOrWhiteSpace(invoice.NumeroAutorizacion) &&
             !invoice.NumeroAutorizacion.StartsWith("SIM-", StringComparison.OrdinalIgnoreCase))

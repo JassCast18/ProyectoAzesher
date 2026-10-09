@@ -5,7 +5,6 @@ import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
 import NotificationToast from '../components/NotificationToast';
 import NitValidationField from '../components/NitValidationField';
-import { openBlobInNewTab } from '../utils/blobFiles';
 
 const money = new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' });
 const isConsumerFinal = nit => !nit || String(nit).trim().toUpperCase() === 'CF';
@@ -62,9 +61,8 @@ export default function CrearFacturaPage() {
         try {
             const response = await axiosClient.post('/facturacion', { idRecibo: selected.idRecibo, idSucursal: Number(selectedSucursalId), ...form });
             const idFactura = response.data.data.idFactura;
-            const pdfResponse = await axiosClient.get(`/facturacion/${idFactura}/pdf`, { responseType: 'blob' });
-            openBlobInNewTab(pdfResponse.data);
-            setNotification({ type: 'success', message: response.data.message || 'Factura procesada.' });
+            setNotification({ type: 'info', message: response.data.message || 'La factura se generará en segundo plano. Te notificaremos cuando esté lista.' });
+            window.dispatchEvent(new Event('notifications-refresh'));
             navigate(`/ventas/facturas?factura=${idFactura}`);
         } catch (error) {
             setNotification({ type: 'error', message: error.response?.data?.errors || error.response?.data?.message || 'No fue posible facturar.' });

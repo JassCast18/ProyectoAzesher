@@ -105,10 +105,8 @@ export default function RecibosPage() {
         if (!invoiceNitValidated) return setNotification({ type: 'warning', message: 'Valida el NIT antes de autorizar la factura.' });
         try {
             const response = await axiosClient.post('/facturacion/abonos', { idAbono: invoiceTarget.idAbono, idSucursal: Number(selectedSucursalId), ...invoiceForm });
-            const idFactura = response.data.data.idFactura;
-            const pdf = await axiosClient.get(`/facturacion/${idFactura}/pdf`, { responseType: 'blob' });
-            openBlobInNewTab(pdf.data);
-            setInvoiceTarget(null); setNotification({ type: 'success', message: 'Abono facturado correctamente.' }); await loadReceipts();
+            setInvoiceTarget(null); setNotification({ type: 'info', message: response.data.message || 'La factura se generará en segundo plano. Te notificaremos cuando esté lista.' });
+            window.dispatchEvent(new Event('notifications-refresh')); await loadReceipts();
         } catch (error) { setNotification({ type: 'error', message: error.response?.data?.message || 'No fue posible facturar el abono.' }); }
     };
 
