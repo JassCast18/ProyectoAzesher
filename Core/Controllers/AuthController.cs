@@ -7,6 +7,8 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Cryptography;
 using System.Text;
 using Core.Services;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace Core.Controllers
 {
@@ -99,6 +101,27 @@ namespace Core.Controllers
                     Errors = ex.Message 
                 });
             }
+        }
+
+        [Authorize]
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh()
+        {
+            var username = User.FindFirstValue(ClaimTypes.Name);
+            if (string.IsNullOrWhiteSpace(username))
+                return Unauthorized(new ApiResponse<object> { Success = false, Message = "La sesión ya no es válida." });
+
+            var usuario = await _authProvider.ObtenerUsuarioParaLoginAsync(username);
+            if (usuario is null)
+                return Unauthorized(new ApiResponse<object> { Success = false, Message = "El usuario ya no está disponible." });
+
+            usuario.password = string.Empty;
+            return Ok(new ApiResponse<object>
+            {
+                Success = true,
+                Message = "Sesión renovada.",
+                Data = new { Token = _authProvider.GenerarTokenJwt(usuario) }
+            });
         }
 
         private Task AuditLogin(int? idUsuario,string? username,string resultado,int codigo,string detalle,int? idSucursal=null)

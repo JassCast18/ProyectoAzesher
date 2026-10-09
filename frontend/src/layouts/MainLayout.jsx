@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -35,6 +35,8 @@ import logoAzeShers from "../assets/logo.png";
 import { clearSalesDraft } from "../state/ventasDraftStore";
 import { getPendingRequests } from "../api/axiosClient";
 import NotificationMenu from "../components/NotificationMenu";
+import LoadingIndicator from "../components/LoadingIndicator";
+import SessionExpiryGuard from "../components/SessionExpiryGuard";
 
 export default function MainLayout({ children }) {
   const {
@@ -49,6 +51,12 @@ export default function MainLayout({ children }) {
   } = useAuth();
   const location = useLocation();
   const [loading, setLoading] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const handleLogout = useCallback(() => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    window.setTimeout(logout, 650);
+  }, [isLoggingOut, logout]);
   useEffect(() => {
     let delay;
     const onActivity = event => {
@@ -108,6 +116,8 @@ export default function MainLayout({ children }) {
       className="flex h-screen bg-slate-50 overflow-hidden"
       style={{ "--branch-color": branchColor }}
     >
+      {isLoggingOut && <LoadingIndicator fullScreen label="Cerrando sesión…" />}
+      <SessionExpiryGuard onLogout={handleLogout} />
       {isSidebarOpen && <button type="button" aria-label="Cerrar menú" className="fixed inset-0 z-20 bg-slate-900/40 md:hidden" onClick={() => setIsSidebarOpen(false)} />}
       {/* MENÚ LATERAL (SIDEBAR) COLAPSABLE */}
       <aside
@@ -451,16 +461,7 @@ export default function MainLayout({ children }) {
               </div>
 
               <ChevronDown className="h-4 w-4 text-slate-400 group-hover:text-slate-600 hidden sm:block" />
-            </button>{isProfileOpen && <><button aria-label="Cerrar menú de perfil" className="fixed inset-0 z-40 cursor-default" onClick={() => setIsProfileOpen(false)} /><div className="absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-xl border bg-white py-2 shadow-xl"><NavLink to="/perfil?seccion=datos" className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-slate-50"><UserIcon className="h-4 w-4" />Editar perfil</NavLink><NavLink to="/perfil?seccion=password" className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-slate-50"><ShieldCheck className="h-4 w-4" />Cambiar contraseña</NavLink><button onClick={logout} className="flex w-full items-center gap-2 border-t px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50"><LogOut className="h-4 w-4" />Cerrar sesión</button></div></>}</div>
-
-            {/* Botón de Logout directo (opcional, lo puedes mover a un dropdown del perfil luego) */}
-            <button
-              onClick={logout}
-              title="Cerrar sesión"
-              className="ml-1 hidden rounded-full p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 sm:block"
-            >
-              <LogOut className="h-5 w-5" />
-            </button>
+            </button>{isProfileOpen && <><button aria-label="Cerrar menú de perfil" className="fixed inset-0 z-40 cursor-default" onClick={() => setIsProfileOpen(false)} /><div className="absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-xl border bg-white py-2 shadow-xl"><NavLink to="/perfil?seccion=datos" className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-slate-50"><UserIcon className="h-4 w-4" />Editar perfil</NavLink><NavLink to="/perfil?seccion=password" className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-slate-50"><ShieldCheck className="h-4 w-4" />Cambiar contraseña</NavLink><button onClick={handleLogout} className="flex w-full items-center gap-2 border-t px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50"><LogOut className="h-4 w-4" />Cerrar sesión</button></div></>}</div>
           </div>
         </header>
 

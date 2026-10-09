@@ -62,7 +62,7 @@ namespace Core.Provider
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(claims),
-                Expires = DateTime.UtcNow.AddHours(8), // El token expira en 8 horas
+                Expires = DateTime.UtcNow.AddMinutes(30),
                 Issuer = jwtSettings["Issuer"],
                 Audience = jwtSettings["Audience"],
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)

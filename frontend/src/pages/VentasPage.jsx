@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Barcode, Search, Trash2, Plus, Building2, Smartphone } from 'lucide-react';
+import { Barcode, Camera, Search, Trash2, Plus, Building2, Smartphone } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
@@ -10,6 +10,7 @@ import PaymentMethodsPanel from '../components/PaymentMethodsPanel';
 import CreditCustomerModal from '../components/CreditCustomerModal';
 import NitValidationField from '../components/NitValidationField';
 import PhoneScannerModal from '../components/PhoneScannerModal';
+import MobileCameraScannerModal from '../components/MobileCameraScannerModal';
 
 const money = new Intl.NumberFormat('es-GT', {
     style: 'currency',
@@ -47,6 +48,7 @@ export default function VentasPage() {
     const [barcode, setBarcode] = useState('');
     const [readingBarcode, setReadingBarcode] = useState(false);
     const [phoneScannerOpen, setPhoneScannerOpen] = useState(false);
+    const [cameraScannerOpen, setCameraScannerOpen] = useState(false);
     const cartItemsRef = useRef(cartItems);
 
     const total = useMemo(() => cartItems.reduce((sum, item) => sum + item.subtotal, 0), [cartItems]);
@@ -264,9 +266,8 @@ export default function VentasPage() {
         setProductResults([]);
     };
 
-    const readBarcode = async event => {
-        event?.preventDefault();
-        const code = barcode.trim();
+    const addBarcode = async rawCode => {
+        const code = String(rawCode || '').trim();
         if (!effectiveSucursalId) {
             setNotification({ message: 'Selecciona una sucursal antes de escanear.', type: 'warning' });
             return;
@@ -282,6 +283,11 @@ export default function VentasPage() {
         } finally {
             setReadingBarcode(false);
         }
+    };
+
+    const readBarcode = event => {
+        event?.preventDefault();
+        addBarcode(barcode);
     };
 
     const receivePhoneProduct = product => {
@@ -365,7 +371,7 @@ export default function VentasPage() {
                         </div>
 
                         <form onSubmit={readBarcode} className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-                            <div className="flex flex-col gap-2 lg:flex-row lg:items-end">
+                            <div className="hidden flex-col gap-2 md:flex lg:flex-row lg:items-end">
                                 <label className="flex-1">
                                     <span className="mb-1 block text-xs font-bold uppercase tracking-wide text-slate-600">Lector de código de barras</span>
                                     <span className="relative block">
@@ -376,7 +382,15 @@ export default function VentasPage() {
                                 <button type="submit" disabled={readingBarcode || !barcode.trim()} className="button-primary h-11 justify-center px-5 disabled:opacity-50"><Barcode className="h-4 w-4" />{readingBarcode ? 'Buscando…' : 'Agregar código'}</button>
                                 <button type="button" onClick={() => setPhoneScannerOpen(true)} disabled={!effectiveSucursalId} className="button-secondary h-11 justify-center px-5 disabled:opacity-50"><Smartphone className="h-4 w-4" />Usar teléfono</button>
                             </div>
-                            <p className="mt-2 text-xs text-slate-500">El lector físico escribe el código y lo agrega al enviar Enter. El teléfono puede conectarse por QR o por enlace.</p>
+                            <p className="mt-2 hidden text-xs text-slate-500 md:block">El lector físico escribe el código y lo agrega al enviar Enter. El teléfono puede conectarse por QR o por enlace.</p>
+                            <div className="space-y-2 md:hidden">
+                                <label className="block text-sm font-semibold text-slate-700" htmlFor="mobile-barcode">Código del producto</label>
+                                <input id="mobile-barcode" value={barcode} onChange={event => setBarcode(event.target.value)} placeholder="Escanea o escribe el código" autoComplete="off" inputMode="text" className="h-12 w-full rounded-xl border border-slate-300 bg-white px-4 font-mono text-sm outline-none focus:border-[var(--branch-color)]" />
+                                <div className="grid grid-cols-2 gap-2">
+                                    <button type="submit" disabled={readingBarcode || !barcode.trim()} className="button-primary h-12 justify-center disabled:opacity-50"><Barcode className="h-4 w-4" />{readingBarcode ? 'Buscando…' : 'Agregar'}</button>
+                                    <button type="button" onClick={() => setCameraScannerOpen(true)} disabled={!effectiveSucursalId} className="button-secondary h-12 justify-center disabled:opacity-50"><Camera className="h-4 w-4" />Usar cámara</button>
+                                </div>
+                            </div>
                         </form>
 
                         <div className="mt-4 grid gap-3 md:grid-cols-[1.7fr_0.7fr_auto]">
@@ -640,6 +654,11 @@ export default function VentasPage() {
                 onClose={() => setPhoneScannerOpen(false)}
                 onProductScanned={receivePhoneProduct}
                 onNotify={(type, message) => setNotification({ type, message })}
+            />
+            <MobileCameraScannerModal
+                open={cameraScannerOpen}
+                onClose={() => setCameraScannerOpen(false)}
+                onDetected={addBarcode}
             />
 
             <div className="border border-brand-teal bg-white px-6 py-4 text-slate-900 shadow-sm">

@@ -25,6 +25,7 @@ import SalidaInventarioPage from "../pages/SalidaInventarioPage";
 import PlanillaPage from "../pages/PlanillaPage";
 import MobileBarcodeScannerPage from "../pages/MobileBarcodeScannerPage";
 import ProfilePage from "../pages/ProfilePage";
+import NotFoundPage from "../pages/NotFoundPage";
 
 const ProtectedRoute = ({ children, module }) => {
   const { user, hasModuleAccess } = useAuth();
@@ -35,12 +36,23 @@ const ProtectedRoute = ({ children, module }) => {
   return children;
 };
 
+const PublicOnlyRoute = ({ children }) => {
+  const { user } = useAuth();
+  return user ? <Navigate to="/dashboard" replace /> : children;
+};
+
+const UnknownRoute = () => {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/" replace />;
+  return <MainLayout><NotFoundPage /></MainLayout>;
+};
+
 export default function AppRouter() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <Routes>
-          <Route path="/" element={<LoginPage />} />
+          <Route path="/" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
           <Route path="/restablecer-password" element={<ResetPasswordPage />} />
           <Route path="/lector/:token" element={<MobileBarcodeScannerPage />} />
           <Route path="/perfil" element={<ProtectedRoute><MainLayout><ProfilePage /></MainLayout></ProtectedRoute>} />
@@ -360,8 +372,7 @@ export default function AppRouter() {
           />
           <Route path="/bitacora" element={<ProtectedRoute module="bitacora"><MainLayout><BitacoraPage /></MainLayout></ProtectedRoute>} />
 
-          {/* Cualquier otra ruta lo manda al login */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<UnknownRoute />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

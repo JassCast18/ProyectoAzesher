@@ -1,8 +1,18 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import { jwtDecode } from "jwt-decode";
 
 const AuthContext = createContext(null);
+
+const decodeValidToken = (token) => {
+  if (!token) return null;
+  try {
+    const decoded = jwtDecode(token);
+    return Number(decoded?.exp || 0) * 1000 > Date.now() ? decoded : null;
+  } catch {
+    return null;
+  }
+};
 
 const getRoleName = (user) => {
   const rawRole =
@@ -24,11 +34,9 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
     const storedToken = localStorage.getItem("token");
     if (!storedToken) return null;
-    try {
-      return jwtDecode(storedToken);
-    } catch {
-      return null;
-    }
+    const decoded = decodeValidToken(storedToken);
+    if (!decoded) localStorage.removeItem("token");
+    return decoded;
   });
 
   const [sucursales, setSucursales] = useState(() => {
@@ -47,6 +55,28 @@ export const AuthProvider = ({ children }) => {
   });
   const [isSucursalLocked, setIsSucursalLocked] = useState(false);
 
+  useEffect(() => {
+    const syncSession = (event) => {
+      if (event.key !== "token") return;
+      const decoded = decodeValidToken(event.newValue);
+      setUser(decoded);
+      if (decoded) {
+        try {
+          setSucursales(JSON.parse(localStorage.getItem("sucursales") || "[]"));
+        } catch {
+          setSucursales([]);
+        }
+        setSelectedSucursalId(localStorage.getItem("selectedSucursalId") || "");
+      } else {
+        setSucursales([]);
+        setSelectedSucursalId("");
+        setIsSucursalLocked(false);
+      }
+    };
+    window.addEventListener("storage", syncSession);
+    return () => window.removeEventListener("storage", syncSession);
+  }, []);
+
   const login = async (username, password) => {
     try {
       const response = await axiosClient.post("/auth/login", {
@@ -56,7 +86,6 @@ export const AuthProvider = ({ children }) => {
 
       if (response.data.success) {
         const { token, sucursales: sucursalesDB } = response.data.data;
-        localStorage.setItem("token", token);
         localStorage.setItem("sucursales", JSON.stringify(sucursalesDB));
         const decodedUser = jwtDecode(token);
         const tokenSucursal =
@@ -69,6 +98,8 @@ export const AuthProvider = ({ children }) => {
           ? tokenSucursal
           : String(sucursalesDB[0]?.idSucursal ?? "");
         localStorage.setItem("selectedSucursalId", defaultSucursal);
+        // Se guarda al final para que otras pestañas reciban toda la sesión.
+        localStorage.setItem("token", token);
         setUser(decodedUser);
         setSucursales(sucursalesDB);
         setSelectedSucursalId(defaultSucursal);
@@ -95,8 +126,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const updateToken = (token) => {
+    const decoded = decodeValidToken(token);
+    if (!decoded) return false;
     localStorage.setItem("token", token);
-    setUser(jwtDecode(token));
+    setUser(decoded);
+    return true;
   };
 
   const selectSucursal = (idSucursal) => {
