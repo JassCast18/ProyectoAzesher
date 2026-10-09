@@ -1,4 +1,4 @@
-CREATE OR ALTER PROCEDURE dbo.sp_registrar_entrada_pedido_core @IdSucursal INT,@IdProveedor INT,@Fecha DATETIME=NULL,@MetodoPago VARCHAR(30),@Observaciones VARCHAR(500)=NULL,@Detalles NVARCHAR(MAX) AS
+CREATE OR ALTER PROCEDURE dbo.sp_registrar_entrada_pedido_core @IdSucursal INT,@IdProveedor INT,@IdUsuario INT,@Fecha DATETIME=NULL,@MetodoPago VARCHAR(30),@Observaciones VARCHAR(500)=NULL,@Detalles NVARCHAR(MAX) AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
  IF NOT EXISTS(SELECT 1 FROM OPENJSON(@Detalles)) THROW 50002,'El pedido debe incluir al menos un producto.',1;
@@ -15,7 +15,7 @@ BEGIN
   IF @IdSesion IS NULL THROW 50007,'No hay una caja abierta en esta sucursal. Abre la caja antes de registrar una entrada en efectivo.',1;
  END;
  DECLARE @Total DECIMAL(12,2)=(SELECT SUM(Cantidad*CostoUnitario) FROM @Detalle); IF @Total IS NULL THROW 50006,'No fue posible calcular el total del pedido.',1;
- INSERT dbo.compra(fecha,total,id_proveedor,id_sucursal,numero_pedido,metodo_pago,observaciones,id_sesion) VALUES(ISNULL(@Fecha,GETDATE()),@Total,@IdProveedor,@IdSucursal,'PENDIENTE',@MetodoPago,NULLIF(LTRIM(RTRIM(@Observaciones)),''),@IdSesion);
+ INSERT dbo.compra(fecha,total,id_proveedor,id_sucursal,numero_pedido,metodo_pago,observaciones,id_sesion,id_usuario) VALUES(ISNULL(@Fecha,GETDATE()),@Total,@IdProveedor,@IdSucursal,'PENDIENTE',@MetodoPago,NULLIF(LTRIM(RTRIM(@Observaciones)),''),@IdSesion,@IdUsuario);
  DECLARE @IdCompra INT=CAST(SCOPE_IDENTITY() AS INT);
  UPDATE dbo.compra SET numero_pedido=CONCAT('PED-',RIGHT('00000000'+CAST(@IdCompra AS VARCHAR(10)),8)) WHERE id_compra=@IdCompra;
  INSERT dbo.detalle_compra(id_compra,id_producto,cantidad,costo_unitario,subtotal) SELECT @IdCompra,IdProducto,Cantidad,CostoUnitario,Cantidad*CostoUnitario FROM @Detalle;

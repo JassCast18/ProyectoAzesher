@@ -64,10 +64,14 @@ namespace Core.Provider
 
             try
             {
-                return await connection.QuerySingleAsync<int>(
+                var idRecibo = await connection.QuerySingleAsync<int>(
                     "dbo.sp_autorizar_venta",
                     parametros,
                     commandType: CommandType.StoredProcedure);
+                await connection.ExecuteAsync(
+                    "UPDATE v SET id_usuario=@IdUsuario FROM dbo.venta v INNER JOIN dbo.factura f ON f.id_venta=v.id_venta INNER JOIN dbo.recibo r ON r.id_factura=f.id_factura WHERE r.id_recibo=@IdRecibo",
+                    new { IdUsuario = idUsuario, IdRecibo = idRecibo });
+                return idRecibo;
             }
             catch (SqlException ex) when (ex.Number >= 50000)
             {

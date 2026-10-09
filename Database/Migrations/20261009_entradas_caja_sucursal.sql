@@ -12,7 +12,7 @@ BEGIN
     SET NOCOUNT ON;
     SELECT c.id_compra IdCompra,c.numero_pedido NumeroPedido,c.fecha Fecha,c.total Total,
            c.metodo_pago MetodoPago,c.observaciones Observaciones,pr.nombre ProveedorNombre,
-           s.nombre SucursalNombre,p.id_producto IdProducto,p.codigo Codigo,p.nombre ProductoNombre,
+           s.nombre SucursalNombre,p.id_producto IdProducto,p.cod_producto Codigo,p.nombre ProductoNombre,
            dc.cantidad Cantidad,dc.costo_unitario CostoUnitario,dc.subtotal Subtotal
     FROM dbo.compra c
     INNER JOIN dbo.proveedor pr ON pr.id_proveedor=c.id_proveedor

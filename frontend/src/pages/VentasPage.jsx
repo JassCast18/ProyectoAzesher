@@ -8,7 +8,6 @@ import { getSalesDraft, saveSalesDraft } from '../state/ventasDraftStore';
 import NotificationToast from '../components/NotificationToast';
 import PaymentMethodsPanel from '../components/PaymentMethodsPanel';
 import CreditCustomerModal from '../components/CreditCustomerModal';
-import NitValidationField from '../components/NitValidationField';
 import PhoneScannerModal from '../components/PhoneScannerModal';
 import MobileCameraScannerModal from '../components/MobileCameraScannerModal';
 
@@ -44,7 +43,6 @@ export default function VentasPage() {
     const [notification, setNotification] = useState(null);
     const [sellers, setSellers] = useState([]);
     const [selectedSellerId, setSelectedSellerId] = useState(() => initialDraft?.selectedSellerId ?? '');
-    const [nitValidated, setNitValidated] = useState(() => !initialDraft?.customer?.nit || String(initialDraft.customer.nit).toUpperCase() === 'CF');
     const [barcode, setBarcode] = useState('');
     const [readingBarcode, setReadingBarcode] = useState(false);
     const [phoneScannerOpen, setPhoneScannerOpen] = useState(false);
@@ -192,7 +190,6 @@ export default function VentasPage() {
                 telefono: creditCustomer.telefono || '',
             }));
             setSelectedClient(creditCustomer);
-            setNitValidated(!creditCustomer.nit || String(creditCustomer.nit).toUpperCase() === 'CF');
         }
     }, [paymentMethod, paymentDetails.credit.customer]);
 
@@ -214,7 +211,6 @@ export default function VentasPage() {
         setClientQuery(`${client.nit || ''} - ${client.nombre}`.trim());
         setClientResults([]);
         setNotification(null);
-        setNitValidated(!client.nit || String(client.nit).toUpperCase() === 'CF');
     };
 
     const addProductToCart = (product, qty = 1, source = 'Producto') => {
@@ -298,7 +294,7 @@ export default function VentasPage() {
         clearSalesDraft();
         cartItemsRef.current = [];
         setCartItems([]); setProductQuery(''); setProductResults([]); setSelectedProduct(null); setQuantity(1); setBarcode('');
-        setClientQuery(''); setClientResults([]); setSelectedClient(null); setCustomer({ nit: '', nombre: '', domicilio: '', telefono: '' }); setNitValidated(false);
+        setClientQuery(''); setClientResults([]); setSelectedClient(null); setCustomer({ nit: 'CF', nombre: '', domicilio: '', telefono: '' });
         setPaymentMethod('efectivo'); setSelectedSellerId('');
         setPaymentDetails(current => ({ currencyId: current.currencyId, currencyCode: current.currencyCode, posId: null, reference: '', transferDate: '', transferBase64: null, transferMime: null, transferFileName: '', credit: { customer: null, installments: 1, hasInitialPayment: false, initialAmount: 0, schedule: [] } }));
         setNotification({ type: 'success', message: 'Los datos de la venta fueron limpiados.' });
@@ -311,10 +307,6 @@ export default function VentasPage() {
     };
 
     const handleGenerateReceipt = async () => {
-        if (!nitValidated) {
-            setNotification({ message: 'Valida el NIT del cliente antes de generar la venta.', type: 'warning' });
-            return;
-        }
         const validation = validateGenerateReceipt({
             cartItems,
             customer,
@@ -543,7 +535,7 @@ export default function VentasPage() {
                         <div className="flex items-center justify-between gap-3">
                             <div>
                                 <h2 className="text-lg font-semibold text-slate-900">Cliente y facturación</h2>
-                                <p className="text-sm text-slate-500">CF por defecto o buscar por NIT en el catálogo.</p>
+                                <p className="text-sm text-slate-500">Busca un cliente del catálogo o registra sus datos básicos.</p>
                             </div>
                             <Building2 className="h-5 w-5 text-brand-teal" />
                         </div>
@@ -577,17 +569,6 @@ export default function VentasPage() {
                                     </div>
                                 )}
                             </div>
-
-                            <NitValidationField
-                                value={customer.nit || 'CF'}
-                                onChange={(nit) => { setCustomer((current) => ({ ...current, nit })); setSelectedClient(null); }}
-                                onValidated={(valid, result) => {
-                                    setNitValidated(valid);
-                                    if (valid && result && !result.isConsumerFinal)
-                                        setCustomer((current) => ({ ...current, nit: result.nit, nombre: result.name }));
-                                }}
-                                inputClassName="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-brand-teal focus:bg-white"
-                            />
 
                             <input
                                 value={customer.nombre}
@@ -640,7 +621,7 @@ export default function VentasPage() {
                     <button
                         type="button"
                         onClick={handleGenerateReceipt}
-                        disabled={cartItems.length === 0 || !nitValidated}
+                        disabled={cartItems.length === 0}
                         className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                     >
                         Generar recibo

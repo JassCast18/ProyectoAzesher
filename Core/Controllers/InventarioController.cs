@@ -44,7 +44,8 @@ public class InventarioController(IInventarioProviderDTO inventarioProvider) : C
         var branchId = ResolveBranch(order.IdSucursal); if (!branchId.HasValue) return BranchRequired();
         if (order.IdProveedor <= 0 || order.Detalles.Count == 0) return BadRequest(new ApiResponse<object> { Success = false, Message = "Selecciona un proveedor y agrega productos." });
         order.IdSucursal = branchId.Value;
-        try { var id = await inventarioProvider.RegistrarEntradaAsync(order); return Ok(new ApiResponse<object> { Success = true, Message = "Entrada registrada e inventario actualizado.", Data = new { IdCompra = id } }); }
+        var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var idUsuario) ? idUsuario : 0;
+        try { var id = await inventarioProvider.RegistrarEntradaAsync(order, userId); return Ok(new ApiResponse<object> { Success = true, Message = "Entrada registrada e inventario actualizado.", Data = new { IdCompra = id } }); }
         catch (Exception ex) { return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message }); }
     }
 

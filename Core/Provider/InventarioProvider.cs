@@ -69,10 +69,10 @@ public class InventarioProvider(IConfiguration configuration) : IInventarioProvi
         return await connection.QuerySingleAsync<int>("dbo.sp_crear_producto_entrada", new { product.IdProveedor, product.Codigo, product.Nombre, product.Descripcion, product.Precio }, commandType: CommandType.StoredProcedure);
     }
 
-    public async Task<int> RegistrarEntradaAsync(RegistrarEntradaPedidoDTO order)
+    public async Task<int> RegistrarEntradaAsync(RegistrarEntradaPedidoDTO order, int idUsuario)
     {
         using var connection = new SqlConnection(_connectionString);
-        return await connection.QuerySingleAsync<int>("dbo.sp_registrar_entrada_pedido", new { order.IdSucursal, order.IdProveedor, order.Fecha, order.MetodoPago, order.Observaciones, Detalles = JsonSerializer.Serialize(order.Detalles) }, commandType: CommandType.StoredProcedure);
+        return await connection.QuerySingleAsync<int>("dbo.sp_registrar_entrada_pedido", new { order.IdSucursal, order.IdProveedor, IdUsuario = idUsuario, order.Fecha, order.MetodoPago, order.Observaciones, Detalles = JsonSerializer.Serialize(order.Detalles) }, commandType: CommandType.StoredProcedure);
     }
 
     private async Task<List<T>> QueryList<T>(string procedure, object? parameters)

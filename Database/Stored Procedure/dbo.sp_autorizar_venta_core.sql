@@ -110,8 +110,8 @@ BEGIN
             THROW 50016, 'Debe existir una caja abierta en esta sucursal antes de autorizar una venta.', 1;
 
         DECLARE @IdVenta INT;
-        INSERT INTO dbo.venta (fecha, total, tipo_pago, id_cliente, id_vendedor, id_sesion)
-        VALUES (GETDATE(), @Total, @MetodoPago, @IdCliente, @IdVendedor, @IdSesion);
+        INSERT INTO dbo.venta (fecha, total, tipo_pago, id_cliente, id_vendedor, id_sesion, id_usuario)
+        VALUES (GETDATE(), @Total, @MetodoPago, @IdCliente, @IdVendedor, @IdSesion, @IdUsuario);
         SET @IdVenta = CAST(SCOPE_IDENTITY() AS INT);
 
         INSERT INTO dbo.detalle_pago_venta (
