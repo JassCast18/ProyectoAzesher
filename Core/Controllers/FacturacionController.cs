@@ -4,6 +4,8 @@ using Core.Integrations.Digifact;
 using Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using Core.Services;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
@@ -11,7 +13,7 @@ using QuestPDF.Infrastructure;
 namespace Core.Controllers;
 
 [Authorize, ApiController, Route("api/facturacion")]
-public class FacturacionController(IFacturacionProviderDTO provider, IDigifactClient digifact, IDigifactNucFactory nucFactory) : ControllerBase
+public class FacturacionController(IFacturacionProviderDTO provider, IDigifactClient digifact, IDigifactNucFactory nucFactory, NotificationService notifications, ILogger<FacturacionController> logger) : ControllerBase
 {
     [HttpGet("digifact/estado")]
     public IActionResult DigifactStatus() => Ok(Result("Estado de integración.", digifact.GetStatus()));
@@ -169,6 +171,13 @@ public class FacturacionController(IFacturacionProviderDTO provider, IDigifactCl
         catch (Exception exception)
         {
             try { await provider.MarcarErrorAsync(id, exception.Message); } catch { }
+            try
+            {
+                var userId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out var parsedUser) ? parsedUser : 0;
+                if (userId > 0) await notifications.CreateForUserAsync(userId, null, "factura_error", "Factura pendiente de revisión",
+                    $"La factura #{id} no pudo certificarse: {exception.Message}", "/ventas/facturas", "factura", id);
+            }
+            catch (Exception notificationError) { logger.LogError(notificationError, "No fue posible notificar el error FEL de la factura {InvoiceId}", id); }
             return exception is DigifactException digifactException
                 ? ProviderError(digifactException)
                 : BadRequest(Failure(exception.Message));

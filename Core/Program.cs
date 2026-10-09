@@ -28,6 +28,7 @@ builder.Services.AddScoped<IOperacionProviderDTO, OperacionProvider>();
 builder.Services.AddScoped<ITrabajadorProviderDTO, TrabajadorProvider>();
 builder.Services.AddScoped<IPasswordResetEmailService, PasswordResetEmailService>();
 builder.Services.AddScoped<AccountService>();
+builder.Services.AddScoped<NotificationService>();
 builder.Services.AddScoped<IDatosMaestrosProviderDTO, DatosMaestrosProvider>();
 builder.Services.AddScoped<ICobroProviderDTO, CobroProvider>();
 builder.Services.AddScoped<IBitacoraProviderDTO, BitacoraProvider>();

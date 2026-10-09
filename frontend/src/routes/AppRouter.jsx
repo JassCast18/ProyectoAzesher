@@ -297,7 +297,7 @@ export default function AppRouter() {
           <Route
             path="/alertas"
             element={
-              <ProtectedRoute module="alertas">
+              <ProtectedRoute>
                 <MainLayout>
                   <AlertasPage />
                 </MainLayout>

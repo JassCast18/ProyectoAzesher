@@ -33,8 +33,8 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import logoAzeShers from "../assets/logo.png";
 import { clearSalesDraft } from "../state/ventasDraftStore";
-import LoadingIndicator from "../components/LoadingIndicator";
 import { getPendingRequests } from "../api/axiosClient";
+import NotificationMenu from "../components/NotificationMenu";
 
 export default function MainLayout({ children }) {
   const {
@@ -90,11 +90,13 @@ export default function MainLayout({ children }) {
     location.pathname.startsWith("/trabajadores"),
   );
   const [isConfigOpen, setIsConfigOpen] = useState(() => location.pathname.startsWith("/configuracion"));
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   useEffect(() => {
     if (location.pathname.startsWith('/trabajadores')) setIsTrabajadoresOpen(true);
     if (location.pathname.startsWith('/configuracion')) setIsConfigOpen(true);
     if (location.pathname.startsWith('/clientes')) setIsClientesOpen(true);
     if (window.innerWidth < 768) setIsSidebarOpen(false);
+    setIsProfileOpen(false);
   }, [location.pathname]);
   const selectedBranch = sucursales.find(
     (branch) => String(branch.idSucursal) === String(selectedSucursalId),
@@ -125,12 +127,12 @@ export default function MainLayout({ children }) {
 
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto whitespace-nowrap" onClick={(event) => { if (event.target.closest("a") && window.innerWidth < 768) setIsSidebarOpen(false); }}>
           <NavLink to="/perfil" className={({ isActive }) => `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${isActive ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`}><UserIcon className="h-5 w-5" />Mi perfil</NavLink>
-          {hasModuleAccess("alertas") && <NavLink to="/alertas" className={({ isActive }) => `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${isActive ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`}><Bell className="h-5 w-5" />Alertas</NavLink>}
+          <NavLink to="/alertas" className={({ isActive }) => `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${isActive ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`}><Bell className="h-5 w-5" />Alertas</NavLink>
           {hasModuleAccess("dashboard") && (
             <NavLink
               to="/dashboard"
               className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${isActive ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`
+                `hidden items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors md:flex ${isActive ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`
               }
             >
               <LayoutDashboard className="h-5 w-5 min-w-[20px]" />
@@ -143,7 +145,7 @@ export default function MainLayout({ children }) {
             <button
               type="button"
               onClick={() => setIsInventariosOpen((current) => !current)}
-              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${location.pathname.startsWith("/inventarios") ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`}
+              className={`hidden w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors md:flex ${location.pathname.startsWith("/inventarios") ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`}
             >
               <Box className="h-5 w-5 min-w-[20px]" />
               <span className={!isSidebarOpen ? "hidden" : "block"}>
@@ -155,11 +157,11 @@ export default function MainLayout({ children }) {
             </button>
           )}
           {hasModuleAccess("inventarios") && isInventariosOpen && (
-            <div className="ml-5 space-y-1 border-l border-slate-200 pl-3">
+            <div className="ml-5 hidden space-y-1 border-l border-slate-200 pl-3 md:block">
               <NavLink
                 to="/inventarios/productos"
                 className={({ isActive }) =>
-                  `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"}`
+                  `hidden items-center gap-2 rounded-lg px-3 py-2 text-sm md:flex ${isActive ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"}`
                 }
               >
                 <PackageSearch className="h-4 w-4" />
@@ -239,7 +241,7 @@ export default function MainLayout({ children }) {
               <NavLink
                 to="/ventas/recibos"
                 className={({ isActive }) =>
-                  `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"}`
+                  `hidden items-center gap-2 rounded-lg px-3 py-2 text-sm md:flex ${isActive ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"}`
                 }
               >
                 <ReceiptText className="h-4 w-4" />
@@ -248,7 +250,7 @@ export default function MainLayout({ children }) {
               <NavLink
                 to="/ventas/facturas/crear"
                 className={({ isActive }) =>
-                  `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"}`
+                  `hidden items-center gap-2 rounded-lg px-3 py-2 text-sm md:flex ${isActive ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"}`
                 }
               >
                 <FilePlus2 className="h-4 w-4" />
@@ -258,7 +260,7 @@ export default function MainLayout({ children }) {
                 to="/ventas/facturas"
                 end
                 className={({ isActive }) =>
-                  `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"}`
+                  `hidden items-center gap-2 rounded-lg px-3 py-2 text-sm md:flex ${isActive ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"}`
                 }
               >
                 <Files className="h-4 w-4" />
@@ -268,6 +270,7 @@ export default function MainLayout({ children }) {
           )}
           {hasModuleAccess("caja") && (
             <MenuGroup
+              mobileHidden
               label="Control de caja"
               icon={WalletCards}
               open={isCajaOpen}
@@ -284,6 +287,7 @@ export default function MainLayout({ children }) {
           )}
           {hasModuleAccess("clientes") && (
             <MenuGroup
+              mobileHidden
               label="Gestión de clientes"
               icon={Users}
               open={isClientesOpen}
@@ -306,13 +310,13 @@ export default function MainLayout({ children }) {
               active={location.pathname.startsWith("/cobros")}
               onClick={() => setIsCobrosOpen((value) => !value)}
             >
-              <SubLink to="/cobros/estado-cuenta" icon={ReceiptText}>
+              <SubLink to="/cobros/estado-cuenta" icon={ReceiptText} className="hidden md:flex">
                 Estado de cuenta
               </SubLink>
-              <SubLink to="/cobros/pagar" icon={Banknote}>
+              <SubLink to="/cobros/pagar" icon={Banknote} className="hidden md:flex">
                 Pagar abono
               </SubLink>
-              <SubLink to="/cobros/listado" icon={ListChecks}>
+              <SubLink to="/cobros/listado" icon={ListChecks} className="hidden md:flex">
                 Listado de cobros
               </SubLink>
               {isAdministrator && (
@@ -324,6 +328,7 @@ export default function MainLayout({ children }) {
           )}
           {hasModuleAccess("reportes") && (
             <MenuGroup
+              mobileHidden
               label="Reportes"
               icon={BarChart3}
               open={isReportesOpen}
@@ -337,6 +342,7 @@ export default function MainLayout({ children }) {
           )}
           {hasModuleAccess("trabajadores") && (
             <MenuGroup
+              mobileHidden
               label="Trabajadores"
               icon={ContactRound}
               open={isTrabajadoresOpen}
@@ -364,9 +370,9 @@ export default function MainLayout({ children }) {
               </SubLink>
             </MenuGroup>
           )}
-          {hasModuleAccess("configuracion") && <MenuGroup label="Configuración" icon={Settings2} open={isConfigOpen} active={location.pathname.startsWith("/configuracion")} onClick={() => setIsConfigOpen((value) => !value)}><SubLink to="/configuracion/datos-maestros" icon={Settings2}>Datos maestros</SubLink>{isAdministrator && <SubLink to="/configuracion/usuarios" icon={UserIcon}>Usuarios</SubLink>}</MenuGroup>}
+          {hasModuleAccess("configuracion") && <MenuGroup mobileHidden label="Configuración" icon={Settings2} open={isConfigOpen} active={location.pathname.startsWith("/configuracion")} onClick={() => setIsConfigOpen((value) => !value)}><SubLink to="/configuracion/datos-maestros" icon={Settings2}>Datos maestros</SubLink>{isAdministrator && <SubLink to="/configuracion/usuarios" icon={UserIcon}>Usuarios</SubLink>}</MenuGroup>}
           {isAdministrator && (
-            <NavLink to="/bitacora" className={({ isActive }) => `flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium ${isActive ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`}>
+            <NavLink to="/bitacora" className={({ isActive }) => `hidden items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium md:flex ${isActive ? "bg-brand-teal text-white" : "text-slate-600 hover:bg-slate-50"}`}>
               <ScrollText className="h-5 w-5" />
               Bitácora e histórico
             </NavLink>
@@ -422,22 +428,13 @@ export default function MainLayout({ children }) {
               </div>
             </div>
 
-            {/* 2. Campana de Notificaciones */}
-            {hasModuleAccess("alertas") && (
-              <NavLink
-                to="/alertas"
-                className="relative hidden p-2 text-slate-400 transition-colors hover:text-brand-teal sm:block"
-                title="Alertas"
-              >
-                <Bell className="h-5 w-5" />
-              </NavLink>
-            )}
+            <NotificationMenu />
 
             {/* Línea divisora vertical */}
             <div className="hidden sm:block h-8 w-px bg-gray-200 mx-1"></div>
 
             {/* 3. Perfil de Usuario */}
-            <NavLink to="/perfil" title="Editar mi perfil" className="group flex items-center gap-3 rounded-lg p-1.5 transition-colors hover:bg-slate-50">
+            <div className="relative"><button type="button" onClick={() => setIsProfileOpen((value) => !value)} title="Opciones de perfil" className="group flex items-center gap-3 rounded-lg p-1.5 transition-colors hover:bg-slate-50">
               {/* Avatar circular */}
               <div className="h-9 w-9 bg-brand-teal rounded-full flex items-center justify-center text-white shadow-sm group-hover:shadow-md transition-shadow">
                 <UserIcon className="h-5 w-5" />
@@ -454,13 +451,13 @@ export default function MainLayout({ children }) {
               </div>
 
               <ChevronDown className="h-4 w-4 text-slate-400 group-hover:text-slate-600 hidden sm:block" />
-            </NavLink>
+            </button>{isProfileOpen && <><button aria-label="Cerrar menú de perfil" className="fixed inset-0 z-40 cursor-default" onClick={() => setIsProfileOpen(false)} /><div className="absolute right-0 top-12 z-50 w-56 overflow-hidden rounded-xl border bg-white py-2 shadow-xl"><NavLink to="/perfil?seccion=datos" className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-slate-50"><UserIcon className="h-4 w-4" />Editar perfil</NavLink><NavLink to="/perfil?seccion=password" className="flex items-center gap-2 px-4 py-3 text-sm hover:bg-slate-50"><ShieldCheck className="h-4 w-4" />Cambiar contraseña</NavLink><button onClick={logout} className="flex w-full items-center gap-2 border-t px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50"><LogOut className="h-4 w-4" />Cerrar sesión</button></div></>}</div>
 
             {/* Botón de Logout directo (opcional, lo puedes mover a un dropdown del perfil luego) */}
             <button
               onClick={logout}
               title="Cerrar sesión"
-              className="p-2 ml-1 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+              className="ml-1 hidden rounded-full p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500 sm:block"
             >
               <LogOut className="h-5 w-5" />
             </button>
@@ -469,20 +466,19 @@ export default function MainLayout({ children }) {
 
         {/* CONTENIDO DE LA PÁGINA */}
         <main
-          key={`${selectedSucursalId}-${location.pathname}`}
           className="branch-context relative flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6"
         >
-          <div className="gentle-enter">{children}</div>
-          {loading && <LoadingIndicator label="Conectando con la base de datos…" />}
+          <div>{children}</div>
+          {loading && <div className="pointer-events-none absolute inset-x-0 top-0 z-30 h-1 overflow-hidden bg-slate-200"><span className="block h-full w-1/3 animate-pulse bg-[var(--branch-color)]" /></div>}
         </main>
       </div>
     </div>
   );
 }
 
-function MenuGroup({ label, icon: Icon, open, active, onClick, children }) {
+function MenuGroup({ label, icon: Icon, open, active, onClick, children, mobileHidden = false }) {
   return (
-    <>
+    <div className={mobileHidden ? "hidden md:block" : "block"}>
       <button
         type="button"
         onClick={onClick}
@@ -499,17 +495,17 @@ function MenuGroup({ label, icon: Icon, open, active, onClick, children }) {
           {children}
         </div>
       )}
-    </>
+    </div>
   );
 }
 
-function SubLink({ to, icon: Icon, children }) {
+function SubLink({ to, icon: Icon, children, className = "" }) {
   return (
     <NavLink
       to={to}
       end
       className={({ isActive }) =>
-        `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${isActive ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"}`
+        `flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${className} ${isActive ? "bg-teal-50 font-semibold text-brand-teal" : "text-slate-600 hover:bg-slate-50"}`
       }
     >
       <Icon className="h-4 w-4" />

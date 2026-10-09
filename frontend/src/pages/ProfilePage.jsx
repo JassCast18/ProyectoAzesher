@@ -4,15 +4,17 @@ import axiosClient from "../api/axiosClient";
 import NotificationToast from "../components/NotificationToast";
 import { useAuth } from "../context/AuthContext";
 import { isStrongPassword, passwordHint } from "../utils/passwordPolicy";
+import { useSearchParams } from "react-router-dom";
 
 const emptyPassword = { passwordActual: "", passwordNueva: "", confirmacion: "", codigoCorreo: "" };
 
 export default function ProfilePage() {
   const { isAdministrator, updateToken } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [profile, setProfile] = useState(null);
   const [registeredEmail, setRegisteredEmail] = useState("");
   const [password, setPassword] = useState(emptyPassword);
-  const [tab, setTab] = useState("datos");
+  const [tab, setTab] = useState(() => searchParams.get("seccion") === "password" ? "password" : "datos");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState(null);
   const [codeSent, setCodeSent] = useState({});
@@ -21,6 +23,7 @@ export default function ProfilePage() {
     axiosClient.get("/perfil").then((response) => { setProfile(response.data.data); setRegisteredEmail(response.data.data.correo); })
       .catch(() => setNotice({ type: "error", message: "No fue posible cargar tu perfil." }));
   }, []);
+  useEffect(() => { setTab(searchParams.get("seccion") === "password" ? "password" : "datos"); }, [searchParams]);
 
   const requestCode = async (proposito) => {
     try {
@@ -82,8 +85,8 @@ export default function ProfilePage() {
       <p className="mt-1 text-sm text-slate-500">Actualiza tus datos y protege tu acceso al sistema.</p>
     </div>
     <div className="flex gap-2 overflow-x-auto border-b border-slate-200">
-      <button className={`flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm ${tab === "datos" ? "border-b-2 border-[var(--branch-color)] font-semibold" : "text-slate-500"}`} onClick={() => setTab("datos")}><UserRound className="h-4 w-4" /> Mi información</button>
-      <button className={`flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm ${tab === "password" ? "border-b-2 border-[var(--branch-color)] font-semibold" : "text-slate-500"}`} onClick={() => setTab("password")}><KeyRound className="h-4 w-4" /> Cambiar contraseña</button>
+      <button className={`flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm ${tab === "datos" ? "border-b-2 border-[var(--branch-color)] font-semibold" : "text-slate-500"}`} onClick={() => setSearchParams({ seccion: "datos" }, { replace: true })}><UserRound className="h-4 w-4" /> Mi información</button>
+      <button className={`flex items-center gap-2 whitespace-nowrap px-4 py-3 text-sm ${tab === "password" ? "border-b-2 border-[var(--branch-color)] font-semibold" : "text-slate-500"}`} onClick={() => setSearchParams({ seccion: "password" }, { replace: true })}><KeyRound className="h-4 w-4" /> Cambiar contraseña</button>
     </div>
     {tab === "datos" ? <form onSubmit={saveProfile} className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
       {!profile ? <p className="text-slate-500">Cargando perfil…</p> : <>

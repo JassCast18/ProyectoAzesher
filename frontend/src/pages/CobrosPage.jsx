@@ -20,7 +20,7 @@ export default function CobrosPage({ mode = "list" }) {
   if (mode === "pay") return <PagarAbono branch={selectedSucursalId} />;
   if (mode === "authorize")
     return isAdministrator ? (
-      <Autorizar />
+      <Autorizar initialClientId={Number(searchParams.get("idCliente")) || null} initialQuery={searchParams.get("cliente") || ""} />
     ) : (
       <Page title="Autorizar / denegar crédito">
         <Empty text="Esta opción está disponible únicamente para administradores." />
@@ -498,9 +498,9 @@ function InvoicePayment({payment,form,setForm,close,branch,done,notify}) {
   return <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/40 p-4"><section className="w-full max-w-lg space-y-4 border bg-white p-6 shadow-xl"><div className="flex justify-between"><div><h2 className="text-lg font-bold">Facturar abono</h2><p className="text-sm text-slate-500">Monto: {money.format(payment.monto)}</p></div><button onClick={close}><X className="h-5 w-5"/></button></div><Field label="Nombre receptor *"><input className="input" value={form.nombre} onChange={e=>setForm({...form,nombre:e.target.value})}/></Field><NitValidationField value={form.nit||'CF'} onChange={nit=>setForm({...form,nit})} onValidated={(valid,result)=>{setNitValidated(valid);if(valid&&result&&!result.isConsumerFinal)setForm(current=>({...current,nombre:result.name}));}}/><Field label="Dirección"><input className="input" value={form.direccion} onChange={e=>setForm({...form,direccion:e.target.value})}/></Field><div className="flex justify-end gap-2"><button className="button-secondary" onClick={close}>Cancelar</button><button disabled={!nitValidated} className="button-primary disabled:opacity-45" onClick={save}>Autorizar factura</button></div></section></div>;
 }
 
-function Autorizar() {
+function Autorizar({ initialClientId = null, initialQuery = "" }) {
   const { user } = useAuth();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [rows, setRows] = useState([]);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState({
@@ -512,11 +512,14 @@ function Autorizar() {
   });
   const [notice, setNotice] = useState(null);
   const [confirmation, setConfirmation] = useState(null);
-  const search = async () => {
+  const search = async (term = query, targetId = null) => {
     const response = await axiosClient.get("/cobros/autorizaciones", {
-      params: { query },
+      params: { query: term },
     });
-    setRows(response.data.data || []);
+    const data = response.data.data || [];
+    setRows(data);
+    const target = targetId ? data.find((row) => Number(row.idCliente) === Number(targetId)) : null;
+    if (target) choose(target);
   };
   const choose = (row) => {
     setSelected(row);
@@ -529,6 +532,26 @@ function Autorizar() {
       activo: row.idClienteCredito ? row.activo : true,
     });
   };
+  useEffect(() => {
+    let active = true;
+    axiosClient.get("/cobros/autorizaciones", { params: { query: initialQuery } }).then((response) => {
+      if (!active) return;
+      const data = response.data.data || [];
+      setRows(data);
+      const target = initialClientId ? data.find((row) => Number(row.idCliente) === Number(initialClientId)) : null;
+      if (target) {
+        setSelected(target);
+        setForm({
+          limiteCredito: target.limiteCredito || "",
+          diasMaximosPago: target.diasMaximosPago || 30,
+          fechaVencimientoAutorizacion: target.fechaVencimientoAutorizacion?.slice(0, 10) || "",
+          observaciones: target.observaciones || "",
+          activo: target.idClienteCredito ? target.activo : true,
+        });
+      }
+    });
+    return () => { active = false; };
+  }, [initialClientId, initialQuery]);
   const requestSave = (active) => {
     if (!selected)
       return setNotice({ type: "warning", message: "Selecciona un cliente." });
@@ -557,6 +580,7 @@ function Autorizar() {
         observaciones: form.observaciones,
         activo: active,
       });
+      window.dispatchEvent(new Event("notifications-refresh"));
       setNotice({
         type: "success",
         message: active
@@ -580,7 +604,7 @@ function Autorizar() {
       />
       <SearchBar value={query} setValue={setQuery} search={search} />
       <section className="grid gap-5 xl:grid-cols-[1fr_380px]">
-        <Table
+        <div><div className="hidden md:block"><Table
           headers={["Cliente", "NIT", "Límite", "Deuda", "Estado"]}
           empty={!rows.length}
         >
@@ -599,7 +623,7 @@ function Autorizar() {
               <Cell>{row.estadoAutorizacion}</Cell>
             </tr>
           ))}
-        </Table>
+        </Table></div><div className="space-y-3 md:hidden">{rows.map((row) => <button key={row.idCliente} onClick={() => choose(row)} className={`w-full rounded-xl border p-4 text-left ${selected?.idCliente === row.idCliente ? "border-[var(--branch-color)] bg-slate-50" : "bg-white"}`}><span className="block font-semibold">{row.cliente}</span><small className="text-slate-500">NIT: {row.nit || "CF"}</small><span className="mt-3 grid grid-cols-2 gap-2 text-xs"><span>Deuda<b className="block text-sm">{money.format(row.saldoPendiente)}</b></span><span>Estado<b className="block text-sm">{row.estadoAutorizacion}</b></span></span></button>)}{!rows.length && <Empty />}</div></div>
         <FormPanel title="Decisión de crédito" selected={selected}>
           <Field label="Límite *">
             <input

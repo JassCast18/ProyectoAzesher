@@ -38,6 +38,7 @@ public class BitacoraMiddleware(RequestDelegate next,ILogger<BitacoraMiddleware>
   if(value.EndsWith("/perfil/password"))return "Cambió su propia contraseña";
   if(value.EndsWith("/perfil/verificacion"))return "Solicitó un código de verificación de correo";
   if(value.EndsWith("/perfil")&&method=="PUT")return "Actualizó su perfil";
+  if(value.Contains("/notificaciones/solicitudes-credito"))return "Solicitó autorización de crédito para un cliente";
   if(value.Contains("/trabajadores/configuracion-pago"))return "Actualizo el sueldo y los bonos de un trabajador";
   if(value.Contains("/ventas/autorizar"))return "Autorizó una venta y descontó inventario";
   if(value.Contains("/ventas/recibos")&&value.Contains("anular"))return "Anuló un recibo";

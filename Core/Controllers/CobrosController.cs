@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace Core.Controllers;
 [Authorize,ApiController,Route("api/cobros")]
-public class CobrosController(ICobroProviderDTO provider):ControllerBase
+public class CobrosController(ICobroProviderDTO provider,NotificationService notifications,ILogger<CobrosController> logger):ControllerBase
 {
     [HttpGet] public async Task<IActionResult> Listar(int idSucursal,string? query=null,string orden="deuda_desc",bool soloConDeuda=false)=>Ok(Result("Cobros obtenidos.",await provider.ListarAsync(Branch(idSucursal),query?.Trim()??"",orden,soloConDeuda)));
     [HttpGet("cuentas-pendientes")] public async Task<IActionResult> Pendientes(int idSucursal,string? query=null)=>Ok(Result("Cuentas pendientes.",await provider.CuentasPendientesAsync(Branch(idSucursal),query?.Trim()??"")));
@@ -19,7 +19,7 @@ public class CobrosController(ICobroProviderDTO provider):ControllerBase
     [Authorize(Roles="demo,Demo,superusuario,Superusuario,admin,Admin,Administrador")]
     [HttpGet("autorizaciones")] public async Task<IActionResult> Autorizaciones(string? query=null)=>Ok(Result("Clientes obtenidos.",await provider.AutorizacionesAsync(query?.Trim()??"")));
     [Authorize(Roles="demo,Demo,superusuario,Superusuario,admin,Admin,Administrador")]
-    [HttpPost("autorizaciones")] public async Task<IActionResult> Autorizar(GuardarAutorizacionCreditoDTO request){try{var id=await provider.GuardarAutorizacionAsync(request,UserId());return Ok(Result("Autorización guardada.",new{IdClienteCredito=id}));}catch(Exception ex){return BadRequest(new ApiResponse<object>{Success=false,Message=ex.Message});}}
+    [HttpPost("autorizaciones")] public async Task<IActionResult> Autorizar(GuardarAutorizacionCreditoDTO request){try{var userId=UserId();var id=await provider.GuardarAutorizacionAsync(request,userId);try{await notifications.ResolveCreditRequestAsync(request.IdCliente,userId,request.Activo);}catch(Exception notificationError){logger.LogError(notificationError,"No fue posible resolver la notificación de crédito del cliente {ClientId}",request.IdCliente);}return Ok(Result("Autorización guardada.",new{IdClienteCredito=id}));}catch(Exception ex){return BadRequest(new ApiResponse<object>{Success=false,Message=ex.Message});}}
     private int UserId()=>int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier)??User.FindFirst("id_usuario")?.Value,out var id)?id:0;
     private int Branch(int requested){var claim=User.FindFirst("id_sucursal")?.Value;return int.TryParse(claim,out var id)&&id>0?id:requested;}
     private static ApiResponse<object> Result(string message,object data)=>new(){Success=true,Message=message,Data=data};

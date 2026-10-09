@@ -164,6 +164,15 @@ export default function ClientesPage() {
       });
     }
   };
+  const requestCredit = async (client) => {
+    try {
+      const response = await axiosClient.post(`/notificaciones/solicitudes-credito/${client.idCliente}`);
+      window.dispatchEvent(new Event("notifications-refresh"));
+      setNotification({ type: "success", message: response.data.message });
+    } catch (error) {
+      setNotification({ type: "warning", message: error.response?.data?.message || "No fue posible enviar la solicitud." });
+    }
+  };
 
   return (
     <Page title="Clientes">
@@ -215,6 +224,12 @@ export default function ClientesPage() {
                   </td>
                   <td className="p-4">
                     <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => requestCredit(client)}
+                        className="rounded-md border border-[var(--branch-color)] px-3 py-2 font-semibold text-[var(--branch-color)]"
+                      >
+                        {client.tieneEstadoCrediticio ? "Solicitar revisión" : "Solicitar crédito"}
+                      </button>
                       {client.tieneEstadoCrediticio && <button
                         onClick={() => navigate(`/cobros/estado-cuenta?idCliente=${client.idCliente}&cliente=${encodeURIComponent(client.nombre)}`)}
                         className="rounded-md border px-3 py-2 font-semibold"

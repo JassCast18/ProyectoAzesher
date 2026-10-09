@@ -43,6 +43,9 @@ docker compose exec -T -e "SQLCMDPASSWORD=${MSSQL_SA_PASSWORD}" database \
 docker compose exec -T -e "SQLCMDPASSWORD=${MSSQL_SA_PASSWORD}" database \
   /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -I -d AZESHERBD \
   < Database/Migrations/20261008_perfil_seguridad.sql
+docker compose exec -T -e "SQLCMDPASSWORD=${MSSQL_SA_PASSWORD}" database \
+  /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -I -d AZESHERBD \
+  < Database/Migrations/20261008_notificaciones.sql
 
 # Las migraciones ya se ejecutaron explícitamente arriba. Evitamos volver a
 # ejecutar el servicio one-shot y arrancamos los servicios de aplicación.

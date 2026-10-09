@@ -43,7 +43,7 @@ export default function CreditCustomerModal({ open, onClose, value, onChange, to
                         <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre o NIT" className="w-full rounded-lg border border-slate-300 py-3 pl-10 pr-3 text-sm outline-none focus:border-brand-teal" />
                     </div>
 
-                    <div className="overflow-x-auto border border-slate-200">
+                    <div className="hidden overflow-x-auto border border-slate-200 sm:block">
                         <table className="min-w-full text-sm">
                             <thead className="bg-slate-50 text-left text-slate-600"><tr><th className="p-3">Cliente</th><th className="p-3">Límite</th><th className="p-3">Saldo</th><th className="p-3">Disponible</th><th className="p-3"></th></tr></thead>
                             <tbody className="divide-y divide-slate-100">
@@ -56,6 +56,13 @@ export default function CreditCustomerModal({ open, onClose, value, onChange, to
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                    <div className="space-y-3 sm:hidden">
+                        {results.map((client) => <button key={client.idCliente} type="button" onClick={() => onChange({ ...value, customer: client })} className={`w-full rounded-xl border p-4 text-left ${value.customer?.idCliente === client.idCliente ? 'border-[var(--branch-color)] bg-slate-50' : 'border-slate-200 bg-white'}`}>
+                            <span className="block font-semibold text-slate-900">{client.nombre}</span><small className="text-slate-500">NIT: {client.nit || 'CF'}</small>
+                            <span className="mt-3 grid grid-cols-2 gap-2 text-xs"><span>Límite<b className="block text-sm text-slate-800">{money.format(client.limiteCredito)}</b></span><span>Disponible<b className="block text-sm text-slate-800">{money.format(client.disponible)}</b></span></span>
+                        </button>)}
+                        {!results.length && <p className="rounded-xl border p-6 text-center text-sm text-slate-500">No se encontraron clientes autorizados.</p>}
                     </div>
 
                     {value.customer && (
