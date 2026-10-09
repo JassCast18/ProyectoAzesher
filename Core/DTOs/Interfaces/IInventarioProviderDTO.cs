@@ -11,6 +11,7 @@ public interface IInventarioProviderDTO
     Task<int> CrearProductoAsync(CrearProductoEntradaDTO product);
     Task<int> RegistrarEntradaAsync(RegistrarEntradaPedidoDTO order);
     Task<List<EntradaPedidoConsultaDTO>> BuscarEntradasAsync(int idSucursal, string query);
+    Task<List<EntradaPedidoProductoDTO>> ObtenerEntradaAsync(int idCompra, int idSucursal);
     Task<List<ProveedorDTO>> BuscarProveedoresAsync(string query);
     Task<int> CrearProveedorAsync(ProveedorDTO supplier);
     Task<List<ProductoEntradaDTO>> ObtenerProductosProveedorAsync(int idProveedor);

@@ -1,10 +1,12 @@
 import { CheckCircle2, Loader2, ShieldCheck, XCircle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import axiosClient from '../api/axiosClient';
 
 const normalize = value => (value || '').replace(/[\s-]/g, '').toUpperCase() || 'CF';
 
 export default function NitValidationField({ value, onChange, onValidated, label = 'NIT', inputClassName = 'input' }) {
+    const validatedRef = useRef(onValidated);
+    validatedRef.current = onValidated;
     const [status, setStatus] = useState(() => normalize(value) === 'CF' ? 'valid' : 'idle');
     const [message, setMessage] = useState(() => normalize(value) === 'CF' ? 'Consumidor Final no requiere consulta.' : 'Valida el NIT antes de continuar.');
 
@@ -12,7 +14,7 @@ export default function NitValidationField({ value, onChange, onValidated, label
         const consumerFinal = normalize(value) === 'CF';
         setStatus(consumerFinal ? 'valid' : 'idle');
         setMessage(consumerFinal ? 'Consumidor Final no requiere consulta.' : 'Valida el NIT antes de continuar.');
-        onValidated?.(consumerFinal, consumerFinal ? { nit: 'CF', name: 'CONSUMIDOR FINAL', isConsumerFinal: true } : null);
+        validatedRef.current?.(consumerFinal, consumerFinal ? { nit: 'CF', name: 'CONSUMIDOR FINAL', isConsumerFinal: true } : null);
     }, [value]);
 
     const validate = async () => {

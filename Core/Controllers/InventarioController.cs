@@ -48,6 +48,25 @@ public class InventarioController(IInventarioProviderDTO inventarioProvider) : C
         catch (Exception ex) { return BadRequest(new ApiResponse<object> { Success = false, Message = ex.Message }); }
     }
 
+    [HttpGet("entradas/{idCompra:int}")]
+    public async Task<IActionResult> Entrada(int idCompra, [FromQuery] int? idSucursal)
+    {
+        var branchId = ResolveBranch(idSucursal); if (!branchId.HasValue) return BranchRequired();
+        var rows = await inventarioProvider.ObtenerEntradaAsync(idCompra, branchId.Value);
+        return rows.Count == 0
+            ? NotFound(new ApiResponse<object> { Success = false, Message = "La entrada no existe en la sucursal seleccionada." })
+            : Ok(new ApiResponse<IEnumerable<EntradaPedidoProductoDTO>> { Success = true, Message = "Detalle de entrada.", Data = rows });
+    }
+
+    [HttpGet("entradas/{idCompra:int}/pdf")]
+    public async Task<IActionResult> EntradaPdf(int idCompra, [FromQuery] int? idSucursal)
+    {
+        var branchId = ResolveBranch(idSucursal); if (!branchId.HasValue) return BranchRequired();
+        var rows = await inventarioProvider.ObtenerEntradaAsync(idCompra, branchId.Value);
+        if (rows.Count == 0) return NotFound(new ApiResponse<object> { Success = false, Message = "La entrada no existe en la sucursal seleccionada." });
+        return File(EntradaPedidoDocumentService.GeneratePdf(rows), "application/pdf", $"entrada-productos-{rows[0].NumeroPedido}.pdf");
+    }
+
     [HttpGet("productos")]
     public async Task<IActionResult> ObtenerProductos([FromQuery] int? idSucursal, [FromQuery] string? query = null)
     {

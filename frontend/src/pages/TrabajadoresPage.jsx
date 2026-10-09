@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import axiosClient from "../api/axiosClient";
 import NotificationToast from "../components/NotificationToast";
 import { useAuth } from "../context/AuthContext";
-import { KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
 import { isStrongPassword, passwordHint } from "../utils/passwordPolicy";
 import {
   Bar,
@@ -766,6 +766,17 @@ function Sales() {
   const [rows, setRows] = useState([]);
   const [worker, setWorker] = useState("");
   const [dates, setDates] = useState({ from: monthStart, to: today });
+  const [sort, setSort] = useState({ key: 'fecha', direction: 'desc' });
+  const [page, setPage] = useState(1);
+  const sortedRows = useMemo(() => [...rows].sort((a, b) => {
+    const left = sort.key === 'fecha' ? new Date(a.fecha).getTime() : sort.key === 'total' ? Number(a.total) : String(a[sort.key] || '').toLowerCase();
+    const right = sort.key === 'fecha' ? new Date(b.fecha).getTime() : sort.key === 'total' ? Number(b.total) : String(b[sort.key] || '').toLowerCase();
+    return (left > right ? 1 : left < right ? -1 : 0) * (sort.direction === 'asc' ? 1 : -1);
+  }), [rows, sort]);
+  const pageCount = Math.max(1, Math.ceil(sortedRows.length / 10));
+  const visibleRows = sortedRows.slice((page - 1) * 10, page * 10);
+  const filteredTotal = rows.reduce((sum, row) => sum + Number(row.total || 0), 0);
+  const changeSort = key => { setSort(current => ({ key, direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc' })); setPage(1); };
   useEffect(() => {
     axiosClient
       .get("/trabajadores", { params: { idSucursal: selectedSucursalId } })
@@ -780,13 +791,13 @@ function Sales() {
         fechaHasta: range.to,
       },
     });
-    setRows(r.data.data || []);
+    setRows(r.data.data || []); setPage(1);
   };
   useEffect(() => {
     const initial = { from: monthStart, to: today };
     setWorker("");
     setDates(initial);
-    setRows([]);
+    setRows([]); setPage(1);
     axiosClient.get("/trabajadores/ventas", {
       params: { idSucursal: selectedSucursalId, idVendedor: null, fechaDesde: initial.from, fechaHasta: initial.to },
     }).then((response) => setRows(response.data.data || []));
@@ -818,18 +829,11 @@ function Sales() {
           Buscar
         </button>
       </section>
-      <Table
-        headers={[
-          "Fecha",
-          "Trabajador",
-          "Recibo",
-          "Cliente",
-          "Pago",
-          "Estado",
-          "Total",
-        ]}
-      >
-        {rows.map((row) => (
+      <section className="overflow-x-auto border bg-white">
+        <table className="w-full min-w-[780px] text-sm"><thead className="bg-slate-100 text-left"><tr>
+          <WorkerSortHead label="Fecha" field="fecha" sort={sort} set={changeSort} /><WorkerSortHead label="Trabajador" field="trabajador" sort={sort} set={changeSort} /><WorkerSortHead label="Recibo" field="recibo" sort={sort} set={changeSort} /><WorkerSortHead label="Cliente" field="cliente" sort={sort} set={changeSort} /><WorkerSortHead label="Pago" field="metodoPago" sort={sort} set={changeSort} /><WorkerSortHead label="Estado" field="estado" sort={sort} set={changeSort} /><WorkerSortHead label="Total" field="total" sort={sort} set={changeSort} />
+        </tr></thead><tbody>
+        {visibleRows.map((row) => (
           <tr key={`${row.idVenta}-${row.recibo}`} className="border-t">
             <Td>{new Date(row.fecha).toLocaleString("es-GT")}</Td>
             <Td strong>{row.trabajador}</Td>
@@ -840,9 +844,17 @@ function Sales() {
             <Td>{money.format(row.total)}</Td>
           </tr>
         ))}
-      </Table>
+        </tbody></table>
+        {!rows.length && <p className="p-8 text-center text-slate-500">No hay ventas en el período seleccionado.</p>}
+        <div className="flex flex-col gap-3 border-t-2 border-slate-300 bg-slate-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-slate-600">Total de las {rows.length} ventas filtradas <strong className="ml-2 text-lg text-slate-900">{money.format(filteredTotal)}</strong></p><div className="flex items-center gap-2 text-sm"><button disabled={page === 1} onClick={() => setPage(page - 1)} className="rounded border bg-white px-3 py-1.5 disabled:opacity-40">Anterior</button><span>Página {page} de {pageCount}</span><button disabled={page === pageCount} onClick={() => setPage(page + 1)} className="rounded border bg-white px-3 py-1.5 disabled:opacity-40">Siguiente</button></div></div>
+      </section>
     </Page>
   );
+}
+
+function WorkerSortHead({ label, field, sort, set }) {
+  const Icon = sort.key !== field ? ChevronsUpDown : sort.direction === 'asc' ? ChevronUp : ChevronDown;
+  return <th className="px-3 py-3"><button type="button" onClick={() => set(field)} className="inline-flex items-center gap-1 whitespace-nowrap">{label}<Icon className="h-3.5 w-3.5 text-slate-400" /></button></th>;
 }
 
 function Page({ title, children }) {

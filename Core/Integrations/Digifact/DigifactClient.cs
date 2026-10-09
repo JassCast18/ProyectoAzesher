@@ -56,7 +56,9 @@ public sealed class DigifactClient(HttpClient http, IOptions<DigifactOptions> co
         var envelope = JsonSerializer.Deserialize<NitLookupEnvelope>(json, JsonOptions);
         var result = envelope?.Response.FirstOrDefault();
         return result is null || string.IsNullOrWhiteSpace(result.Name)
-            ? new(false, false, nit, "", "El NIT no fue encontrado en el registro consultado por Digifact.")
+            ? new(false, false, nit, "", options.Environment.Equals("Test", StringComparison.OrdinalIgnoreCase)
+                ? "El NIT tiene un formato válido, pero Digifact no lo encontró en su ambiente TEST. Verifica el número o consulta con Digifact si ese contribuyente está disponible para pruebas."
+                : "El NIT tiene un formato válido, pero no fue encontrado en el registro consultado por Digifact.")
             : new(true, false, DigifactOptions.NormalizeTaxId(result.Nit), result.Name.Trim(), "NIT validado correctamente.");
     }
 
@@ -116,10 +118,20 @@ public sealed class DigifactClient(HttpClient http, IOptions<DigifactOptions> co
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
         if (!response.IsSuccessStatusCode) throw BuildException(response.StatusCode, json, "No fue posible descargar el PDF oficial.");
         var item = JsonSerializer.Deserialize<DocumentEnvelope>(json, JsonOptions)?.Response.FirstOrDefault();
-        if (item is null || string.IsNullOrWhiteSpace(item.ResponseData3))
+        if (item is null)
             throw new DigifactException("Digifact no encontró el PDF de esta factura.", 404, json);
-        try { return new(Convert.FromBase64String(item.ResponseData3), "application/pdf", $"FEL-{authorization}.pdf"); }
-        catch (FormatException ex) { throw new DigifactException($"El PDF recibido de Digifact no tiene un formato válido: {ex.Message}"); }
+        foreach (var encoded in new[] { item.ResponseData3, item.ResponseData2, item.ResponseData1 })
+        {
+            if (string.IsNullOrWhiteSpace(encoded)) continue;
+            try
+            {
+                var bytes = Convert.FromBase64String(encoded);
+                if (bytes.Length >= 4 && bytes[0] == '%' && bytes[1] == 'P' && bytes[2] == 'D' && bytes[3] == 'F')
+                    return new(bytes, "application/pdf", $"FEL-{authorization}.pdf");
+            }
+            catch (FormatException) { }
+        }
+        throw new DigifactException("Digifact respondió el documento, pero ninguno de sus campos contiene un PDF válido.", 502, json);
     }
 
     private async Task<HttpResponseMessage> SendAuthorizedAsync(Func<HttpRequestMessage> requestFactory, CancellationToken cancellationToken)

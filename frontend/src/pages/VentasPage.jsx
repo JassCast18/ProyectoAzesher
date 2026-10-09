@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Barcode, Camera, Search, Trash2, Plus, Building2, Smartphone } from 'lucide-react';
+import { Barcode, Camera, Search, Trash2, Plus, Building2, Smartphone, RotateCcw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
@@ -294,6 +294,16 @@ export default function VentasPage() {
         addProductToCart(product, 1, 'Producto enviado desde el teléfono');
     };
 
+    const clearSale = () => {
+        clearSalesDraft();
+        cartItemsRef.current = [];
+        setCartItems([]); setProductQuery(''); setProductResults([]); setSelectedProduct(null); setQuantity(1); setBarcode('');
+        setClientQuery(''); setClientResults([]); setSelectedClient(null); setCustomer({ nit: '', nombre: '', domicilio: '', telefono: '' }); setNitValidated(false);
+        setPaymentMethod('efectivo'); setSelectedSellerId('');
+        setPaymentDetails(current => ({ currencyId: current.currencyId, currencyCode: current.currencyCode, posId: null, reference: '', transferDate: '', transferBase64: null, transferMime: null, transferFileName: '', credit: { customer: null, installments: 1, hasInitialPayment: false, initialAmount: 0, schedule: [] } }));
+        setNotification({ type: 'success', message: 'Los datos de la venta fueron limpiados.' });
+    };
+
     const removeItem = (idProducto) => {
         const nextItems = cartItemsRef.current.filter((item) => item.idProducto !== idProducto);
         cartItemsRef.current = nextItems;
@@ -353,7 +363,7 @@ export default function VentasPage() {
 
     return (
         <div className="space-y-6">
-            <header className="page-title p-5"><h1 className="text-2xl font-bold">Venta</h1></header>
+            <header className="page-title flex items-center justify-between gap-3 p-5"><h1 className="text-2xl font-bold">Venta</h1><button type="button" onClick={clearSale} className="button-secondary"><RotateCcw className="h-4 w-4" />Limpiar datos</button></header>
             <div className="grid gap-6 xl:grid-cols-[1.45fr_0.95fr]">
                 <section className="space-y-6">
                     <div className=" border border-slate-200 bg-white p-5 shadow-sm">

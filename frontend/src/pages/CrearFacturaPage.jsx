@@ -5,6 +5,7 @@ import axiosClient from '../api/axiosClient';
 import { useAuth } from '../context/AuthContext';
 import NotificationToast from '../components/NotificationToast';
 import NitValidationField from '../components/NitValidationField';
+import { openBlobInNewTab } from '../utils/blobFiles';
 
 const money = new Intl.NumberFormat('es-GT', { style: 'currency', currency: 'GTQ' });
 const isConsumerFinal = nit => !nit || String(nit).trim().toUpperCase() === 'CF';
@@ -58,16 +59,14 @@ export default function CrearFacturaPage() {
             setNotification({ type: 'warning', message: 'Valida el NIT antes de autorizar la factura.' });
             return;
         }
-        const previewWindow = window.open('', '_blank');
         try {
             const response = await axiosClient.post('/facturacion', { idRecibo: selected.idRecibo, idSucursal: Number(selectedSucursalId), ...form });
             const idFactura = response.data.data.idFactura;
             const pdfResponse = await axiosClient.get(`/facturacion/${idFactura}/pdf`, { responseType: 'blob' });
-            if (previewWindow) previewWindow.location.href = URL.createObjectURL(pdfResponse.data);
+            openBlobInNewTab(pdfResponse.data);
             setNotification({ type: 'success', message: response.data.message || 'Factura procesada.' });
             navigate(`/ventas/facturas?factura=${idFactura}`);
         } catch (error) {
-            previewWindow?.close();
             setNotification({ type: 'error', message: error.response?.data?.errors || error.response?.data?.message || 'No fue posible facturar.' });
         }
     };
