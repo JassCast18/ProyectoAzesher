@@ -13,16 +13,24 @@ git fetch --quiet origin "$BRANCH"
 
 CURRENT_COMMIT="$(git rev-parse HEAD)"
 TARGET_COMMIT="$(git rev-parse "origin/$BRANCH")"
-if [[ "$CURRENT_COMMIT" == "$TARGET_COMMIT" ]]; then
+if [[ "$CURRENT_COMMIT" == "$TARGET_COMMIT" && "${PROJECT_EVE_FORCE_DEPLOY:-0}" != "1" ]]; then
   exit 0
 fi
 
-printf 'Desplegando %s -> %s\n' "$CURRENT_COMMIT" "$TARGET_COMMIT"
-git reset --hard "$TARGET_COMMIT"
+if [[ "$CURRENT_COMMIT" != "$TARGET_COMMIT" ]]; then
+  printf 'Desplegando %s -> %s\n' "$CURRENT_COMMIT" "$TARGET_COMMIT"
+  git reset --hard "$TARGET_COMMIT"
+  # Reinicia usando la versión recién descargada del propio script para que
+  # las migraciones agregadas en el commit se ejecuten inmediatamente.
+  exec env PROJECT_EVE_FORCE_DEPLOY=1 PROJECT_EVE_PREVIOUS_COMMIT="$CURRENT_COMMIT" \
+    /usr/bin/bash "$APP_DIR/deploy/deploy-from-git.sh"
+fi
+
+ROLLBACK_COMMIT="${PROJECT_EVE_PREVIOUS_COMMIT:-$CURRENT_COMMIT}"
 
 rollback() {
-  printf 'El despliegue falló; restaurando %s\n' "$CURRENT_COMMIT" >&2
-  git reset --hard "$CURRENT_COMMIT"
+  printf 'El despliegue falló; restaurando %s\n' "$ROLLBACK_COMMIT" >&2
+  git reset --hard "$ROLLBACK_COMMIT"
   if [[ -f compose.yaml ]]; then
     docker compose up -d --build
   else
