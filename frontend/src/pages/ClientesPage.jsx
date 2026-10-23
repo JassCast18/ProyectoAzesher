@@ -297,7 +297,7 @@ export default function ClientesPage() {
           accept={updateClient}
         />
       )}
-      {createOpen && <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-label="Crear cliente"><div className="gentle-enter my-5 w-full max-w-2xl rounded-xl bg-white shadow-2xl"><header className="flex items-center justify-between border-b p-5"><div><h2 className="text-xl font-bold">Nuevo cliente</h2><p className="text-sm text-slate-500">Completa los datos y valida el NIT antes de guardar.</p></div><button type="button" onClick={closeCreate} aria-label="Cerrar"><X className="h-5 w-5" /></button></header><form onSubmit={requestSave} className="grid gap-4 p-5 md:grid-cols-2"><Input required label="Nombre o razón social *" value={form.nombre} set={value => setForm({ ...form, nombre: value })} /><NitValidationField value={form.nit} onChange={nit => setForm({ ...form, nit })} onValidated={(valid, result) => { setNitValidated(valid); if (valid && result && !result.isConsumerFinal) setForm(current => ({ ...current, nombre: result.name })); }} /><Input label="Teléfono" inputMode="numeric" value={form.telefono} set={value => setForm({ ...form, telefono: value.replace(/[^\d+ -]/g, '') })} hint="8 dígitos; puede incluir +502." /><Input label="Correo" type="email" value={form.correo} set={value => setForm({ ...form, correo: value })} /><Input label="Dirección" value={form.direccion} set={value => setForm({ ...form, direccion: value })} /><Input label="Fecha de nacimiento" type="date" max={new Date().toISOString().slice(0, 10)} value={form.fechaNacimiento} set={value => setForm({ ...form, fechaNacimiento: value })} /><div className="flex justify-end gap-2 md:col-span-2"><button type="button" className="button-secondary" onClick={closeCreate}>Cancelar</button><button className="button-primary">Revisar y guardar</button></div></form></div></div>}
+      {createOpen && <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-label="Crear cliente"><div className="gentle-enter my-5 w-full max-w-2xl rounded-xl bg-white shadow-2xl"><header className="flex items-center justify-between border-b p-5"><div><h2 className="text-xl font-bold">Nuevo cliente</h2><p className="text-sm text-slate-500">Los campos con * son obligatorios. Puedes usar CF si el cliente no proporciona NIT.</p></div><button type="button" onClick={closeCreate} aria-label="Cerrar"><X className="h-5 w-5" /></button></header><form onSubmit={requestSave} className="grid gap-4 p-5 md:grid-cols-2"><Input required label="Nombre o razón social *" value={form.nombre} set={value => setForm({ ...form, nombre: value })} /><NitValidationField label="NIT (opcional)" allowConsumerFinal value={form.nit} onChange={nit => setForm({ ...form, nit })} onValidated={(valid, result) => { setNitValidated(valid); if (valid && result && !result.isConsumerFinal) setForm(current => ({ ...current, nombre: result.name })); }} /><Input label="Teléfono (opcional)" inputMode="numeric" value={form.telefono} set={value => setForm({ ...form, telefono: value.replace(/[^\d+ -]/g, '') })} hint="8 dígitos; puede incluir +502." /><Input label="Correo electrónico (opcional)" type="email" value={form.correo} set={value => setForm({ ...form, correo: value })} /><Input label="Dirección (opcional)" value={form.direccion} set={value => setForm({ ...form, direccion: value })} /><Input label="Fecha de nacimiento (opcional)" type="date" max={new Date().toISOString().slice(0, 10)} value={form.fechaNacimiento} set={value => setForm({ ...form, fechaNacimiento: value })} /><div className="flex justify-end gap-2 md:col-span-2"><button type="button" className="button-secondary" onClick={closeCreate}>Cancelar</button><button className="button-primary">Revisar y guardar</button></div></form></div></div>}
       {confirm && <Confirm data={form} cancel={() => setConfirm(false)} accept={save} />}
     </Page>
   );
@@ -462,6 +462,8 @@ function EditClient({ data, setData, cancel, accept, nitValidated, setNitValidat
             set={(value) => setData({ ...data, nombre: value })}
           />
           <NitValidationField
+            label="NIT (opcional)"
+            allowConsumerFinal
             value={data.nit || "CF"}
             onChange={(nit) => setData({ ...data, nit })}
             onValidated={(valid, result) => {
@@ -471,26 +473,26 @@ function EditClient({ data, setData, cancel, accept, nitValidated, setNitValidat
             }}
           />
           <Input
-            label="Teléfono"
+            label="Teléfono (opcional)"
             value={data.telefono || ""}
             set={(value) =>
               setData({ ...data, telefono: value.replace(/[^\d+ -]/g, "") })
             }
           />
           <Input
-            label="Correo"
+            label="Correo electrónico (opcional)"
             type="email"
             value={data.correo || ""}
             set={(value) => setData({ ...data, correo: value })}
           />
           <div className="md:col-span-2">
             <Input
-              label="Dirección"
+              label="Dirección (opcional)"
               value={data.direccion || ""}
               set={(value) => setData({ ...data, direccion: value })}
             />
           </div>
-          <Input label="Fecha de nacimiento" type="date" max={new Date().toISOString().slice(0,10)} value={data.fechaNacimiento?.slice?.(0,10) || ""} set={(value) => setData({ ...data, fechaNacimiento: value })} />
+          <Input label="Fecha de nacimiento (opcional)" type="date" max={new Date().toISOString().slice(0,10)} value={data.fechaNacimiento?.slice?.(0,10) || ""} set={(value) => setData({ ...data, fechaNacimiento: value })} />
         </div>
         <div className="mt-6 flex justify-end gap-2">
           <button onClick={cancel} className="rounded-md border px-4 py-2">

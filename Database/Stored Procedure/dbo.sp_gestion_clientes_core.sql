@@ -35,8 +35,6 @@ CREATE OR ALTER PROCEDURE dbo.sp_crear_cliente_core
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF NULLIF(LTRIM(RTRIM(@Nit)),'') IS NOT NULL AND EXISTS(SELECT 1 FROM dbo.cliente WHERE nit=@Nit)
-        THROW 50301,'Ya existe un cliente con ese NIT.',1;
     IF @FechaNacimiento>CAST(GETDATE() AS DATE) THROW 50303,'La fecha de nacimiento no puede ser futura.',1;
     INSERT dbo.cliente(nombre,nit,telefono,correo,direccion,fecha_nacimiento)
     VALUES(LTRIM(RTRIM(@Nombre)),NULLIF(LTRIM(RTRIM(@Nit)),''),NULLIF(LTRIM(RTRIM(@Telefono)),''),NULLIF(LTRIM(RTRIM(@Correo)),''),NULLIF(LTRIM(RTRIM(@Direccion)),''),@FechaNacimiento);
@@ -51,8 +49,6 @@ BEGIN
     SET NOCOUNT ON;
     IF NOT EXISTS(SELECT 1 FROM dbo.cliente WHERE id_cliente=@IdCliente)
         THROW 50302,'El cliente no existe.',1;
-    IF NULLIF(LTRIM(RTRIM(@Nit)),'') IS NOT NULL AND EXISTS(SELECT 1 FROM dbo.cliente WHERE nit=@Nit AND id_cliente<>@IdCliente)
-        THROW 50301,'Ya existe otro cliente con ese NIT.',1;
     IF @FechaNacimiento>CAST(GETDATE() AS DATE) THROW 50303,'La fecha de nacimiento no puede ser futura.',1;
     UPDATE dbo.cliente
        SET nombre=LTRIM(RTRIM(@Nombre)),nit=NULLIF(LTRIM(RTRIM(@Nit)),''),telefono=NULLIF(LTRIM(RTRIM(@Telefono)),''),
